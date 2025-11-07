@@ -32,7 +32,7 @@ source "googlecompute" "debian-image" {
   # ADDED: Specify the network and subnetwork for the temporary VM.
   # Replace 'your-vpc-name' and 'your-subnetwork-name' with your actual network resources.
   network             = "manual-vpc"
-  subnetwork          = "your-subnetwork-name"
+  subnetwork          = "west4subnet"
   image_name          = var.image_name
   image_description   = "Debian 11 image with custom configurations built by Packer."
   ssh_username        = "packer"
