@@ -40,6 +40,7 @@ steps:
       - '--subnet=petshop-subnet-europe-west4'
       - '--tags=allow-http'
       - '--machine-type=e2-small'
+      - '--shielded-secure-boot' # ADDED: Enable Shielded VM to comply with organization policy.
     waitFor: ['Packer Build Petshop']
 
   # ADDED: Step 4: Trigger a rolling update on the Managed Instance Group
