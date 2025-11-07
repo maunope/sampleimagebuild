@@ -96,6 +96,12 @@ resource "google_compute_region_instance_group_manager" "petshop_mig" {
 
   base_instance_name = "petshop-vm"
   target_size        = 1
+
+  # ADDED: Map the port name used by the backend service to a port number.
+  named_port {
+    name = "http"
+    port = 80
+  }
 }
 
 # -----------------------------------------------------------------------------
