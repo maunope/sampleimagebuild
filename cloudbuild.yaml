@@ -6,8 +6,9 @@ steps:
       - 'https://releases.hashicorp.com/packer/1.10.2/packer_1.10.2_linux_amd64.zip'
     id: 'download-packer'
 
-  - name: 'gcr.io/cloud-builders/unzip'
-    args: ['packer_1.10.2_linux_amd64.zip']
+  - name: 'ubuntu'
+    entrypoint: 'unzip'
+    args: ['-o', 'packer_1.10.2_linux_amd64.zip'] # Use -o to overwrite without prompting
     waitFor: ['download-packer']
     id: 'unzip-packer'
 
