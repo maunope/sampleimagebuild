@@ -16,7 +16,7 @@ packer {
   required_plugins {
     # CORRECTED: Use the official registry source and the correct plugin name 'googlecompute'
     googlecompute = {
-      source  = "hashicorp/googlecompute"
+      source  = "github.com/hashicorp/packer-plugin-googlecompute" # DEFINITIVE FIX: Use the full GitHub repository path
       version = "~> 1.4" 
     }
   }
