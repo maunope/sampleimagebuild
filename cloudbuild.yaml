@@ -1,49 +1,38 @@
 steps:
-  # Step 1: Download the Packer executable zip file.
-  # This step just produces an artifact in the shared /workspace.
-  - name: 'gcr.io/cloud-builders/wget'
-    args:
-      - 'https://releases.hashicorp.com/packer/1.12.0/packer_1.12.0_linux_amd64.zip'
-    id: 'download-packer'
+# ----------------------------------------------------------------------
+# Step 1: Initialize Packer (Download Plugins)
+# This step uses the official HashiCorp builder image.
+# It automatically runs 'packer init' and downloads the plugin 
+# (hashicorp/google-compute 1.2.4) into the shared workspace.
+# ----------------------------------------------------------------------
+- id: 'Packer Init'
+  name: 'hashicorp/packer:latest' # Use the official builder image
+  entrypoint: 'packer'
+  args:
+    - 'init'
+    - 'packer-template.pkr.hcl'
 
-  # Step 2: Run the entire Packer pipeline in a single, unified step.
-  # All commands that depend on 'unzip' and the 'packer' executable must run
-  # in the same step because each Cloud Build step runs in a fresh container.
-  - name: 'ubuntu'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        # Install the 'unzip' utility
-        apt-get update && apt-get install -y unzip
+# ----------------------------------------------------------------------
+# Step 2: Build the Image (Validate and Execute)
+# This step automatically picks up the initialized plugins from the 
+# previous step's shared workspace.
+# ----------------------------------------------------------------------
+- id: 'Packer Build'
+  name: 'hashicorp/packer:latest' # Use the same official builder image
+  entrypoint: 'packer'
+  args:
+    # We combine validate and build in one script command for simplicity,
+    # or you can use the 'build' command which performs validation automatically.
+    - 'build'
+    # Pass your variables to the build command
+    - '-var'
+    - 'project_id=${_GCP_PROJECT}'
+    - '-var'
+    - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
+    - 'packer-template.pkr.hcl'
+  # Ensure this step waits for initialization to complete
+  waitFor: ['Packer Init']
 
-        # Install ca-certificates to resolve TLS verification issues when downloading Packer plugins
-        apt-get install -y ca-certificates
-
-        # Unzip the Packer archive into the current directory (/workspace)
-        unzip -o packer_1.12.0_linux_amd64.zip
-
-        # Make the extracted 'packer' binary executable
-        chmod +x packer
-
-        # Initialize Packer to download the required 'googlecompute' plugin
-        ./packer init -upgrade packer-template.pkr.hcl # Added -upgrade to force re-evaluation
-
-        # Validate the Packer template with the provided substitution variables
-        ./packer validate \
-          -var "project_id=${_GCP_PROJECT}" \
-          -var "image_name=${_IMAGE_NAME}-${SHORT_SHA}" \
-          packer-template.pkr.hcl
-
-        # Build the VM image using the Packer template
-        ./packer build \
-          -var "project_id=${_GCP_PROJECT}" \
-          -var "image_name=${_IMAGE_NAME}-${SHORT_SHA}" \
-          packer-template.pkr.hcl
-    # This step only needs to wait for the Packer zip file to be downloaded.
-    waitFor: ['download-packer']
-    id: 'packer-pipeline'
-
-# Specify logging options, which is required when using a custom service account.
+# Specify logging options (This block is fine)
 options:
   logging: CLOUD_LOGGING_ONLY
