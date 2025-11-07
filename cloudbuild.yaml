@@ -17,6 +17,9 @@ steps:
         # Install the 'unzip' utility
         apt-get update && apt-get install -y unzip
 
+        # Install ca-certificates to resolve TLS verification issues when downloading Packer plugins
+        apt-get install -y ca-certificates
+
         # Unzip the Packer archive into the current directory (/workspace)
         unzip -o packer_1.10.2_linux_amd64.zip
 
