@@ -32,7 +32,16 @@ source "googlecompute" "debian-image" {
   # ADDED: Specify the network and subnetwork for the temporary VM.
   # Replace 'your-vpc-name' and 'your-subnetwork-name' with your actual network resources.
   network             = "manual-vpc"
-  subnetwork          = "west4subnet"
+  subnetwork          = "west4subnet" # Assuming this subnetwork has Cloud NAT for outbound access
+
+  # ADDED: Comply with constraints/compute.vmExternalIpAccess
+  # This tells Packer not to assign an external IP to the temporary instance.
+  no_external_ip      = true
+
+  # ADDED: Comply with constraints/compute.requireShieldedVm
+  shielded_instance_config {
+    enable_secure_boot = true
+  }
   image_name          = var.image_name
   image_description   = "Debian 11 image with custom configurations built by Packer."
   ssh_username        = "packer"
