@@ -1,38 +1,47 @@
+# cloudbuild.yaml
+
 steps:
 # ----------------------------------------------------------------------
-# Step 1: Initialize Packer (Download Plugins)
-# This step uses the official HashiCorp builder image.
-# It automatically runs 'packer init' and downloads the plugin 
-# (hashicorp/google-compute 1.2.4) into the shared workspace.
+# Step 1: Packer Initialization (Downloads Plugin)
+# Uses the official Packer image. This step executes 'packer init' which
+# downloads the required 'googlecompute' plugin based on the source 
+# specified in your packer-template.pkr.hcl file.
 # ----------------------------------------------------------------------
 - id: 'Packer Init'
-  name: 'hashicorp/packer:latest' # Use the official builder image
+  name: 'hashicorp/packer:latest' # Official, pre-installed Packer image
   entrypoint: 'packer'
   args:
     - 'init'
-    - 'packer-template.pkr.hcl'
+    - 'packer-template.pkr.hcl' # Replace with your actual file name
 
 # ----------------------------------------------------------------------
-# Step 2: Build the Image (Validate and Execute)
-# This step automatically picks up the initialized plugins from the 
-# previous step's shared workspace.
+# Step 2: Packer Build (Validates and Executes Image Creation)
+# This step executes 'packer build'. It automatically picks up the 
+# initialized plugins from the shared workspace of the previous step.
 # ----------------------------------------------------------------------
 - id: 'Packer Build'
-  name: 'hashicorp/packer:latest' # Use the same official builder image
+  name: 'hashicorp/packer:latest'
   entrypoint: 'packer'
   args:
-    # We combine validate and build in one script command for simplicity,
-    # or you can use the 'build' command which performs validation automatically.
     - 'build'
-    # Pass your variables to the build command
+    # Use standard Cloud Build variables for substitution
     - '-var'
     - 'project_id=${_GCP_PROJECT}'
     - '-var'
     - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
     - 'packer-template.pkr.hcl'
-  # Ensure this step waits for initialization to complete
+  # This step MUST wait for the 'init' step to complete successfully
   waitFor: ['Packer Init']
 
-# Specify logging options (This block is fine)
+# ----------------------------------------------------------------------
+# Define substitution variables (Best Practice)
+# You need to define these in the trigger or as default subs here.
+# Assuming these are passed via the trigger or a separate file.
+# ----------------------------------------------------------------------
+substitutions:
+  _GCP_PROJECT: $(PROJECT_ID) # Use built-in PROJECT_ID variable
+  _IMAGE_NAME: 'packer-base-image' # Example default name
+
+# Specify logging options (This is fine)
 options:
   logging: CLOUD_LOGGING_ONLY
