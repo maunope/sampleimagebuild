@@ -34,7 +34,7 @@ source "googlecompute" "debian-image" {
   subnetwork          = "west4subnet"
 
   # ADDED: Comply with constraints/compute.vmExternalIpAccess
-  no_external_ip      = true
+  #no_external_ip      = true
 
   # ADDED: Comply with constraints/compute.requireShieldedVm
   shielded_instance_config {
