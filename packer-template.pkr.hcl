@@ -17,7 +17,7 @@ packer {
 
     googlecompute = {
       # This is the path the old Packer version is strictly demanding.
-      source  = "github.com/hashicorp/googlecompute" 
+      source  = "github.com/hashicorp/packer-plugin-googlecompute" 
       # Version 1.2.4 is the latest on this path and supports no_external_ip and shielded_instance_config.
       version = "1.2.4" 
     }
