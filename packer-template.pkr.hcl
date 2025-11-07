@@ -11,6 +11,18 @@ variable "image_name" {
   default = "packer-debian-image"
 }
 
+# Packer block to define required plugins and their versions.
+# This tells 'packer init' what plugins to download and install.
+packer {
+  required_plugins {
+    googlecompute = {
+      source  = "github.com/hashicorp/googlecompute"
+      version = "~> 1.0" # Use a compatible version, e.g., latest 1.x
+    }
+  }
+}
+
+
 # Define the source image and builder configuration.
 source "googlecompute" "debian-image" {
   project_id          = var.project_id
@@ -31,7 +43,7 @@ build {
     inline = [
       "sudo apt-get update",
       "sudo apt-get install -y apache2",
-      "touch /tmp/sample-31.txt"
+      "touch /tmp/sample-32.txt"
 
     ]
   }
