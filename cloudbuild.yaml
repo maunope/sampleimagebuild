@@ -6,7 +6,7 @@ steps:
       - 'https://releases.hashicorp.com/packer/1.10.2/packer_1.10.2_linux_amd64.zip'
     id: 'download-packer'
 
-  # Step 1.1: Install unzip and then extract Packer in the same container.
+# Step 1.1: Install unzip, extract Packer, and move it to /usr/local/bin.
   - name: 'ubuntu'
     entrypoint: 'bash'
     args:
@@ -14,23 +14,26 @@ steps:
       - |
         apt-get update && apt-get install -y unzip
         unzip -o packer_1.10.2_linux_amd64.zip
+        mv packer /usr/local/bin/packer # Move packer to a directory in PATH
+    waitFor: ['download-packer']
     waitFor: ['download-packer']
     id: 'unzip-packer'
 
   # Step 1.2: Initialize Packer plugins
   # This step reads packer-template.pkr.hcl and installs necessary plugins (e.g., googlecompute).
   - name: 'ubuntu'
-    entrypoint: './packer'
+    entrypoint: 'packer' # Now packer is in PATH
     args:
       - 'init'
       - 'packer-template.pkr.hcl'
+    dir: '/workspace' # Ensure this runs in the directory containing packer-template.pkr.hcl
     waitFor: ['unzip-packer']
     id: 'packer-init'
 
   # Step 2: Validate the Packer template
   # This is a good practice to catch syntax errors early.
   - name: 'ubuntu'
-    entrypoint: './packer'
+    entrypoint: 'packer'
     args:
       - 'validate'
       - '-var'
@@ -38,13 +41,14 @@ steps:
       - '-var'
       - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}' # Append commit SHA for uniqueness
       - 'packer-template.pkr.hcl'
+    dir: '/workspace' # Ensure this runs in the directory containing packer-template.pkr.hcl
     waitFor: ['packer-init']
     id: 'validate-packer' # This step now implicitly waits for packer-init
 
   # Step 3: Run Packer to build the image
   # This will create a new VM, run configurations, and save it as a custom image.
   - name: 'ubuntu'
-    entrypoint: './packer'
+    entrypoint: 'packer'
     args:
       - 'build'
       - '-var'
@@ -52,6 +56,7 @@ steps:
       - '-var'
       - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}' # Append commit SHA for uniqueness
       - 'packer-template.pkr.hcl'
+    dir: '/workspace' # Ensure this runs in the directory containing packer-template.pkr.hcl
     waitFor: ['validate-packer']
     id: 'build-image' # This step now implicitly waits for packer-init
 
