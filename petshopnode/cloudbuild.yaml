@@ -23,6 +23,40 @@ steps:
     dir: 'petshopnode' # Set the working directory to this folder
     waitFor: ['Packer Init Petshop'] # Ensure initialization is complete
 
+  # ADDED: Step 3: Create a new instance template with the new image
+  - id: 'Create Instance Template'
+    name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
+    entrypoint: 'gcloud'
+    args:
+      - 'compute'
+      - 'instance-templates'
+      - 'create'
+      - 'petshop-instance-template-${SHORT_SHA}' # Create a uniquely named template
+      - '--project=${_GCP_PROJECT}'
+      - '--source-image-family=petshopnode-family' # Use the family of the image we just built
+      - '--source-image-project=${_GCP_PROJECT}'
+      - '--region=europe-west4'
+      - '--network=petshop-vpc'
+      - '--subnet=petshop-subnet-europe-west4'
+      - '--tags=allow-http'
+      - '--machine-type=e2-small'
+    waitFor: ['Packer Build Petshop']
+
+  # ADDED: Step 4: Trigger a rolling update on the Managed Instance Group
+  - id: 'Deploy to MIG'
+    name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
+    entrypoint: 'gcloud'
+    args:
+      - 'compute'
+      - 'instance-groups'
+      - 'managed'
+      - 'rolling-action'
+      - 'start-update'
+      - 'petshop-mig' # The name of your MIG from the petshopdeploy Terraform
+      - '--version=template=petshop-instance-template-${SHORT_SHA}'
+      - '--region=europe-west4'
+    waitFor: ['Create Instance Template']
+
 # Specify logging options
 options:
   logging: CLOUD_LOGGING_ONLY

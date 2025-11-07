@@ -110,7 +110,7 @@ resource "google_compute_health_check" "http_health_check" {
   healthy_threshold   = 2
   unhealthy_threshold = 2
 
-  http_check {
+  http_health_check {
     port         = 80
     request_path = "/"
   }
