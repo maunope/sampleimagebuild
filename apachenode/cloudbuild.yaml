@@ -1,0 +1,31 @@
+steps:
+  # Step 1: Initialize Packer plugins for the Apache image build
+  - id: 'Packer Init Apache'
+    name: 'hashicorp/packer:latest'
+    entrypoint: 'packer'
+    args:
+      - 'init'
+      - 'packer-apache-template.pkr.hcl'
+    dir: 'apachenode' # Set the working directory to this folder
+
+  # Step 2: Build the Apache Image
+  - id: 'Packer Build Apache'
+    name: 'hashicorp/packer:latest'
+    entrypoint: 'packer'
+    args:
+      - 'build'
+      # Pass your variables to the build command
+      - '-var'
+      - 'project_id=${_GCP_PROJECT}'
+      - '-var'
+      - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
+      - 'packer-apache-template.pkr.hcl'
+    dir: 'apachenode' # Set the working directory to this folder
+    waitFor: ['Packer Init Apache'] # Ensure initialization is complete
+
+# Specify logging options
+options:
+  logging: CLOUD_LOGGING_ONLY
+  # Use the same private pool for this build
+  pool: 
+    name: 'projects/mnosedademo/locations/europe-west4/workerPools/packer_private_pool'
