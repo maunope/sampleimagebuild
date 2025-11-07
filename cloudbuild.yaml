@@ -36,4 +36,4 @@ options:
   # ADDED: Specify the worker pool for this build.
   # This name must match the name of the pool created in Terraform.
   pool: 
-    name: 'projects/mnosedademo/locations/europe-west4/workerPools/packer-build-private-pool'
+    name: 'projects/mnosedademo/locations/europe-west4/workerPools/packer_private_pool'
