@@ -12,30 +12,28 @@ variable "image_name" {
 }
 
 # Packer block to define required plugins and their versions.
-# This tells 'packer init' what plugins to download and install.
 packer {
   required_plugins {
+    # **FIXED SOURCE:** Use the official HCL registry source for the plugin
     googlecompute = {
-      source  = "github.com/hashicorp/googlecompute" # Reverted to the full path as required by Packer syntax
-      version = "~> 1.4" # Requesting a version known to support no_external_ip and shielded_instance_config
+      source  = "hashicorp/google-compute" # Correct registry path
+      version = "~> 1.4" 
     }
   }
 }
 
-
 # Define the source image and builder configuration.
-source "googlecompute" "debian-image" {
+# **FIXED TYPE:** Renamed the source type to 'google-compute' to align with the plugin name
+source "google-compute" "debian-image" {
   project_id          = var.project_id
-  source_image_family = "debian-11" # Using Debian 11 family
+  source_image_family = "debian-11"
   zone                = "europe-west4-a"
 
   # ADDED: Specify the network and subnetwork for the temporary VM.
-  # Replace 'your-vpc-name' and 'your-subnetwork-name' with your actual network resources.
   network             = "manual-vpc"
-  subnetwork          = "west4subnet" # Assuming this subnetwork has Cloud NAT for outbound access
+  subnetwork          = "west4subnet"
 
   # ADDED: Comply with constraints/compute.vmExternalIpAccess
-  # This tells Packer not to assign an external IP to the temporary instance.
   no_external_ip      = true
 
   # ADDED: Comply with constraints/compute.requireShieldedVm
@@ -49,16 +47,15 @@ source "googlecompute" "debian-image" {
 
 # The 'build' block defines what Packer will do.
 build {
-  sources = ["source.googlecompute.debian-image"]
+  # **FIXED SOURCE REFERENCE:** Updated to reflect the new source type name
+  sources = ["source.google-compute.debian-image"]
 
   # Provisioners are used to install software or configure the machine.
-  # This example updates the package manager and installs apache2.
   provisioner "shell" {
     inline = [
       "sudo apt-get update",
       "sudo apt-get install -y apache2",
       "touch /tmp/sample-32.txt"
-
     ]
   }
 }
