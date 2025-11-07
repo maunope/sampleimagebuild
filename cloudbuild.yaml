@@ -6,9 +6,14 @@ steps:
       - 'https://releases.hashicorp.com/packer/1.10.2/packer_1.10.2_linux_amd64.zip'
     id: 'download-packer'
 
+  # Step 1.1: Install unzip and then extract Packer in the same container.
   - name: 'ubuntu'
-    entrypoint: 'unzip'
-    args: ['-o', 'packer_1.10.2_linux_amd64.zip'] # Use -o to overwrite without prompting
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        apt-get update && apt-get install -y unzip
+        unzip -o packer_1.10.2_linux_amd64.zip
     waitFor: ['download-packer']
     id: 'unzip-packer'
 
@@ -33,7 +38,7 @@ steps:
       - '-var'
       - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}' # Append commit SHA for uniqueness
       - 'packer-template.pkr.hcl'
-    waitFor: ['unzip-packer']
+    waitFor: ['packer-init']
     id: 'validate-packer' # This step now implicitly waits for packer-init
 
   # Step 3: Run Packer to build the image
