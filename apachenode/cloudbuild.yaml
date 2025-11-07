@@ -23,6 +23,24 @@ steps:
     dir: 'apachenode' # Set the working directory to this folder
     waitFor: ['Packer Init Apache'] # Ensure initialization is complete
 
+  # ADDED: Step 3: Clean up old images in the family, keeping the last 3.
+  - id: 'Clean up old Apache images'
+    name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        FAMILY="custom-apachenode-family"
+        IMAGES_TO_DELETE=$(gcloud compute images list --project=${_GCP_PROJECT} --filter="family=${FAMILY}" --sort-by="~creationTimestamp" --format="value(name)" | tail -n +4)
+        if [ -z "$IMAGES_TO_DELETE" ]; then
+          echo "No old images to delete for family ${FAMILY}."
+        else
+          echo "Deleting old images for family ${FAMILY}:"
+          echo "$IMAGES_TO_DELETE"
+          echo "$IMAGES_TO_DELETE" | xargs -r gcloud compute images delete --project=${_GCP_PROJECT} --quiet
+        fi
+    waitFor: ['Packer Build Apache']
+
 # Specify logging options
 options:
   logging: CLOUD_LOGGING_ONLY
