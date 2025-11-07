@@ -16,7 +16,7 @@ packer {
   required_plugins {
     # CORRECTED: Use the official registry source and the correct plugin name 'googlecompute'
     googlecompute = {
-       source  = "hashicorp/google-compute"
+       source  = "registry.terraform.io/hashicorp/google-compute"
       version = "1.2.4" 
     }
   }
