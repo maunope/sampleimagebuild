@@ -43,6 +43,7 @@ source "googlecompute" "debian-image" {
 
   #
   image_name          = var.image_name
+  image_family        = "apache-debian-app-family" # ADDED: Create/use an image family
   image_description   = "Debian 11 image with custom configurations built by Packer."
   ssh_username        = "packer"
 }
@@ -55,9 +56,15 @@ build {
   # Provisioners are used to install software or configure the machine.
   provisioner "shell" {
     inline = [
-      "sudo apt-get update",
-      "sudo apt-get install -y apache2",
-      "touch /tmp/sample-35.txt"
+      "echo 'Waiting for system to become ready...'",
+      "sleep 30",
+      "sudo apt-get update -y",
+      "# MODIFIED: Install Google Cloud Ops Agent",
+      "curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh",
+      "sudo bash add-google-cloud-ops-agent-repo.sh --also-install",
+      "# MODIFIED: Set ulimit permanently for all users",
+      "echo '* soft nofile 64000' | sudo tee /etc/security/limits.d/99-packer.conf",
+      "echo '* hard nofile 64000' | sudo tee -a /etc/security/limits.d/99-packer.conf"
     ]
   }
 }
