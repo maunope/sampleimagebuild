@@ -65,6 +65,7 @@ build {
       "# MODIFIED: Set ulimit permanently for all users",
       "echo '* soft nofile 64000' | sudo tee /etc/security/limits.d/99-packer.conf",
       "echo '* hard nofile 64000' | sudo tee -a /etc/security/limits.d/99-packer.conf"
+      "touch /tmp/2.txt"
     ]
   }
 }
