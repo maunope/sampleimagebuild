@@ -16,7 +16,7 @@ variable "image_name" {
 packer {
   required_plugins {
     googlecompute = {
-      source  = "hashicorp/googlecompute" # Corrected to use the official HashiCorp registry source
+      source  = "github.com/hashicorp/googlecompute" # Reverted to the full path as required by Packer syntax
       version = "~> 1.4" # Requesting a version known to support no_external_ip and shielded_instance_config
     }
   }
