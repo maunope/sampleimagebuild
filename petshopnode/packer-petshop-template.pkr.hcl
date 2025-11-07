@@ -50,7 +50,7 @@ build {
   # ADDED: Use a file provisioner to upload the website files.
   # The source path is relative to the 'petshopnode' directory where the build runs.
   provisioner "file" {
-    source      = "../website/"
+    source      = "../website"
     destination = "/tmp/website/"
   }
 
