@@ -2,18 +2,34 @@
 
 
 steps:
-- name: 'gcr.io/mnosedaplayground/packer'
-  args:
-  - build
-  - -var
-  - image_name=packerbuildsample-image-${SHORT_SHA}
-  - -var
-  - project_id=mnosedaplayground
-  - -var
-  - image_family=debian-11
-  - -var
-  - image_zone=europe-west4-a
-  - 'packer-template.pkr.hcl'
+  # Step 1: Initialize Packer plugins
+  # Use the official HashiCorp Packer image. It comes with Packer pre-installed.
+  # 'packer init' will download the required plugins based on packer-template.pkr.hcl.
+  - id: 'Packer Init'
+    name: 'hashicorp/packer:latest' # Use the official Packer builder image
+    entrypoint: 'packer'
+    args:
+      - 'init'
+      - 'packer-template.pkr.hcl'
+    dir: '/workspace' # Ensure this runs in the directory containing packer-template.pkr.hcl
+
+  # Step 2: Build the Image
+  # This step uses the same official Packer image. It will find the initialized
+  # plugins from the previous step's shared workspace.
+  - id: 'Packer Build'
+    name: 'hashicorp/packer:latest' # Use the same official Packer builder image
+    entrypoint: 'packer'
+    args:
+      - 'build'
+      # Pass your variables to the build command
+      - '-var'
+      - 'project_id=${_GCP_PROJECT}'
+      - '-var'
+      - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
+      - 'packer-template.pkr.hcl'
+    dir: '/workspace' # Ensure this runs in the directory containing packer-template.pkr.hcl
+    waitFor: ['Packer Init'] # Ensure initialization is complete
+
 # Specify logging options (This is fine)
 options:
   logging: CLOUD_LOGGING_ONLY
