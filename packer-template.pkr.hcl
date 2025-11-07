@@ -16,8 +16,8 @@ variable "image_name" {
 packer {
   required_plugins {
     googlecompute = {
-      source  = "github.com/hashicorp/googlecompute"
-      version = "~> 1.2" # Corrected to match available plugin versions (e.g., 1.2.x)
+      source  = "hashicorp/googlecompute" # Corrected to use the official HashiCorp registry source
+      version = "~> 1.4" # Requesting a version known to support no_external_ip and shielded_instance_config
     }
   }
 }
