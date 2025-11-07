@@ -11,7 +11,7 @@ steps:
     args:
       - 'init'
       - 'packer-template.pkr.hcl'
-    dir: '/workspace' # Ensure this runs in the directory containing packer-template.pkr.hcl
+    dir: 'customimage' # MODIFIED: Set the working directory to where the packer file is.
 
   # Step 2: Build the Image
   # This step uses the same official Packer image. It will find the initialized
@@ -27,7 +27,7 @@ steps:
       - '-var'
       - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
       - 'packer-template.pkr.hcl'
-    dir: '/workspace' # Ensure this runs in the directory containing packer-template.pkr.hcl
+    dir: 'customimage' # MODIFIED: Set the working directory to where the packer file is.
     waitFor: ['Packer Init'] # Ensure initialization is complete
 
 # Specify logging options (This is fine)
