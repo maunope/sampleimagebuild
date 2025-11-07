@@ -33,6 +33,7 @@ steps:
 # Specify logging options (This is fine)
 options:
   logging: CLOUD_LOGGING_ONLY
-  pool:
-    # Use the full resource path for your worker pool
-    name: 'projects/mnosedaplayground/locations/europe-west4/workerPools/packerbuildprivate'
+  # ADDED: Specify the worker pool for this build.
+  # This name must match the name of the pool created in Terraform.
+  pool: 
+    name: 'projects/mnosedademo/locations/europe-west4/workerPools/packer-build-private-pool'
