@@ -6,11 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Our Products - The Pet Shop</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
+
+        :root {
+            --primary-color: #2980b9;
+            --secondary-color: #2c3e50;
+            --accent-color: #f39c12;
+            --bg-color: #ecf0f1;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            background-color: #f4f4f9;
-            color: #333;
+            background-color: var(--bg-color);
+            color: var(--secondary-color);
             display: flex;
             flex-direction: column;
             min-height: 100vh;
@@ -18,22 +27,44 @@
 
         .container {
             width: 90%;
-            max-width: 960px;
-            margin: auto;
-            text-align: center;
+            max-width: 1100px;
+            margin: 0 auto;
         }
 
         header {
-            background-color: #4CAF50;
-            color: white;
+            background: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             padding: 1rem 0;
-            font-size: 1.5rem;
-            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 90%;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
         }
 
         main {
             flex: 1;
-            padding: 40px 20px;
+            padding: 2rem 1rem;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 2.5rem;
         }
 
         .product-list {
@@ -42,25 +73,24 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 20px;
+            gap: 2rem;
         }
 
         .product-list li {
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            width: 200px;
+            padding: 2rem 1.5rem;
+            width: 220px;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: transform 0.2s ease-out, box-shadow 0.2s;
         }
 
-        .back-button {
-            display: inline-block;
-            background-color: #757575;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-top: 30px;
+        .product-list li:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
         }
 
         footer {
@@ -68,24 +98,28 @@
             color: white;
             text-align: center;
             padding: 1rem 0;
+            margin-top: 2rem;
         }
     </style>
 </head>
 
 <body>
-    <header class="container">
-        The Pet Shop
+    <header>
+        <nav class="container">
+            <a href="index.html" class="logo">The Pet Shop</a>
+        </nav>
     </header>
 
-    <main class="container">
+    <main>
         <h1>Our Awesome Pet Products</h1>
-        <ul class="product-list">
-            <li>Premium Dog Food</li>
-            <li>Interactive Cat Toys</li>
-            <li>Spacious Fish Tanks</li>
-            <li>Colorful Bird Cages</li>
-        </ul>
-        <a href="index.html" class="back-button">Back to Home</a>
+        <div class="container">
+            <ul class="product-list">
+                <li>Premium Dog Food</li>
+                <li>Interactive Cat Toys</li>
+                <li>Spacious Fish Tanks</li>
+                <li>Colorful Bird Cages</li>
+            </ul>
+        </div>
     </main>
 
     <footer class="container">
