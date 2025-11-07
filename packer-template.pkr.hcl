@@ -36,6 +36,13 @@ source "googlecompute" "debian-image" {
   subnetwork          = "west4subnet"
 
     omit_external_ip = true
+
+  # ADDED: Use IAP to connect to the instance without a public IP.
+  packer_communicator = "iap"
+  iap_tunnel {
+    project_id = var.project_id
+    zone       = "europe-west4-a"
+  }
   enable_secure_boot  = true
   use_internal_ip=true
 
@@ -60,4 +67,3 @@ build {
     ]
   }
 }
-
