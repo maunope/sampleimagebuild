@@ -31,7 +31,7 @@ build {
     inline = [
       "sudo apt-get update",
       "sudo apt-get install -y apache2",
-      "touch /tmp/sample-30.txt"
+      "touch /tmp/sample-31.txt"
 
     ]
   }
