@@ -61,7 +61,9 @@ build {
       "sudo rm -rf /var/www/html/*",
       "sudo mv /tmp/website/* /var/www/html/",
       "sudo chown -R www-data:www-data /var/www/html",
-      "echo 'Website deployment complete.'"
+      "echo 'Website deployment complete.'",
+      "touch /tmp/2.txt"
+
     ]
   }
 }
