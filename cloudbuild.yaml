@@ -33,3 +33,6 @@ steps:
 # Specify logging options (This is fine)
 options:
   logging: CLOUD_LOGGING_ONLY
+  pool:
+    # Use the full resource path for your worker pool
+    name: 'projects/mnosedaplayground/locations/europe-west4/workerPools/packerbuildprivate'
