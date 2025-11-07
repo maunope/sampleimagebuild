@@ -51,7 +51,7 @@ build {
   # The source path is relative to the 'petshopnode' directory where the build runs.
   provisioner "file" {
     source      = "../website/"
-te    destination = "/tmp/website/"
+    destination = "/tmp/website/"
   }
 
   # Use a shell provisioner to move the files into the Apache root.
