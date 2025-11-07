@@ -38,7 +38,7 @@ steps:
       - '-c'
       - |
         FAMILY="custom-debian-family"
-        IMAGES_TO_DELETE=$(gcloud compute images list --project=${_GCP_PROJECT} --filter="family=${FAMILY}" --sort-by="~creationTimestamp" --format="value(name)" | tail -n +4)
+        IMAGES_TO_DELETE=$(gcloud compute images list --project=${_GCP_PROJECT} --filter="family=$${FAMILY}" --sort-by="~creationTimestamp" --format="value(name)" | tail -n +4)
         if [ -z "$IMAGES_TO_DELETE" ]; then
           echo "No old images to delete for family ${FAMILY}."
         else
