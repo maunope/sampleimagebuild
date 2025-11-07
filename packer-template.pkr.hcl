@@ -14,9 +14,11 @@ variable "image_name" {
 # Packer block to define required plugins and their versions.
 packer {
   required_plugins {
-    # CORRECTED: Use the official registry source and the correct plugin name 'googlecompute'
+
     googlecompute = {
-       source  = "registry.terraform.io/hashicorp/google-compute"
+      # This is the path the old Packer version is strictly demanding.
+      source  = "github.com/hashicorp/googlecompute" 
+      # Version 1.2.4 is the latest on this path and supports no_external_ip and shielded_instance_config.
       version = "1.2.4" 
     }
   }
