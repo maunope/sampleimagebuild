@@ -17,7 +17,7 @@ packer {
     # CORRECTED: Use the official registry source and the correct plugin name 'googlecompute'
     googlecompute = {
        source  = "github.com/hashicorp/googlecompute"
-      version = "~> 1.2.4" 
+      version = "1.2.4" 
     }
   }
 }
