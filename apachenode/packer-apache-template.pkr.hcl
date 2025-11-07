@@ -58,7 +58,8 @@ build {
       "sudo apt-get install -y apache2",
       "# MODIFIED: Enable Apache to start on boot",
       "sudo systemctl enable apache2",
-      "echo 'Apache installation complete.'"
+      "echo 'Apache installation complete.'",
+      "touch /tmp/1.txt"
     ]
   }
 }
