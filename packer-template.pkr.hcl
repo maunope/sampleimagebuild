@@ -17,7 +17,7 @@ packer {
   required_plugins {
     googlecompute = {
       source  = "github.com/hashicorp/googlecompute"
-      version = "~> 1.3" # Updated to a version that supports no_external_ip and shielded_instance_config
+      version = "~> 1.2" # Corrected to match available plugin versions (e.g., 1.2.x)
     }
   }
 }
