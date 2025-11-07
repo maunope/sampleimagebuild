@@ -43,7 +43,7 @@ source "googlecompute" "debian-image" {
 
   #
   image_name          = var.image_name
-  image_family        = "apache-debian-app-family" # ADDED: Create/use an image family
+  image_family        = "custome-debian-family" # ADDED: Create/use an image family
   image_description   = "Debian 11 image with custom configurations built by Packer."
   ssh_username        = "packer"
 }
