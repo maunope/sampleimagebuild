@@ -28,6 +28,11 @@ source "googlecompute" "debian-image" {
   project_id          = var.project_id
   source_image_family = "debian-11" # Using Debian 11 family
   zone                = "europe-west4-a"
+
+  # ADDED: Specify the network and subnetwork for the temporary VM.
+  # Replace 'your-vpc-name' and 'your-subnetwork-name' with your actual network resources.
+  network             = "your-vpc-name"
+  subnetwork          = "your-subnetwork-name"
   image_name          = var.image_name
   image_description   = "Debian 11 image with custom configurations built by Packer."
   ssh_username        = "packer"

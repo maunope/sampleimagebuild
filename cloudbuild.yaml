@@ -44,13 +44,6 @@ steps:
     waitFor: ['download-packer']
     id: 'packer-pipeline'
 
-# Substitutions are variables passed from the trigger.
-# SHORT_SHA is a default substitution provided by Cloud Build for all triggers.
-substitutions:
-  _GCP_PROJECT: 'default-project'
-  _IMAGE_NAME: 'default-image'
-  _REGION: 'default-region'
-
 # Specify logging options, which is required when using a custom service account.
 options:
   logging: CLOUD_LOGGING_ONLY
