@@ -1,0 +1,51 @@
+steps:
+  # Step 1: Install Packer
+  # We are fetching a specific version of Packer. It's a good practice to pin versions for consistency.
+  - name: 'gcr.io/cloud-builders/wget'
+    args:
+      - 'https://releases.hashicorp.com/packer/1.10.2/packer_1.10.2_linux_amd64.zip'
+    id: 'download-packer'
+
+  - name: 'gcr.io/cloud-builders/unzip'
+    args: ['packer_1.10.2_linux_amd64.zip']
+    waitFor: ['download-packer']
+    id: 'unzip-packer'
+
+  # Step 2: Validate the Packer template
+  # This is a good practice to catch syntax errors early.
+  - name: 'ubuntu'
+    entrypoint: './packer'
+    args:
+      - 'validate'
+      - '-var'
+      - 'project_id=${_GCP_PROJECT}'
+      - '-var'
+      - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}' # Append commit SHA for uniqueness
+      - 'packer-template.pkr.hcl'
+    waitFor: ['unzip-packer']
+    id: 'validate-packer'
+
+  # Step 3: Run Packer to build the image
+  # This will create a new VM, run configurations, and save it as a custom image.
+  - name: 'ubuntu'
+    entrypoint: './packer'
+    args:
+      - 'build'
+      - '-var'
+      - 'project_id=${_GCP_PROJECT}'
+      - '-var'
+      - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}' # Append commit SHA for uniqueness
+      - 'packer-template.pkr.hcl'
+    waitFor: ['validate-packer']
+    id: 'build-image'
+
+# Substitutions are variables passed from the trigger.
+# SHORT_SHA is a default substitution provided by Cloud Build for all triggers.
+substitutions:
+  _GCP_PROJECT: 'default-project'
+  _IMAGE_NAME: 'default-image'
+  _REGION: 'default-region'
+
+# ADDED: Specify logging options when using a custom service account.
+options:
+  logging: CLOUD_LOGGING_ONLY
