@@ -41,6 +41,7 @@ steps:
       - '--tags=allow-http'
       - '--machine-type=e2-small'
       - '--shielded-secure-boot' # ADDED: Enable Shielded VM to comply with organization policy.
+      - '--no-address'           # ADDED: Do not assign a public IP, to comply with org policy.
     waitFor: ['Packer Build Petshop']
 
   # ADDED: Step 4: Trigger a rolling update on the Managed Instance Group
