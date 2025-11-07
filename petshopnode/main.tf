@@ -54,6 +54,30 @@ resource "google_compute_firewall" "allow_http" {
   target_tags   = [local.http_tag]
 }
 
+# ADDED: Create a router for the NAT gateway
+resource "google_compute_router" "petshop_router" {
+  name    = "petshop-router"
+  region  = google_compute_subnetwork.petshop_subnet.region
+  network = google_compute_network.petshop_vpc.id
+}
+
+# ADDED: Create the Cloud NAT gateway to allow egress traffic from the instances
+resource "google_compute_router_nat" "petshop_nat" {
+  name                               = "petshop-nat-gateway"
+  router                             = google_compute_router.petshop_router.name
+  region                             = google_compute_router.petshop_router.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
+  subnetwork {
+    name                    = google_compute_subnetwork.petshop_subnet.id
+    source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
+  }
+  log_config {
+    enable = true
+    filter = "ERRORS_ONLY"
+  }
+}
+
 # -----------------------------------------------------------------------------
 # 3. Instance Template and Managed Instance Group (MIG)
 # -----------------------------------------------------------------------------
@@ -73,8 +97,12 @@ resource "google_compute_instance_template" "petshop_template" {
   # Configure networking
   network_interface {
     subnetwork = google_compute_subnetwork.petshop_subnet.id
-    # An access_config block is required for external connectivity
-    access_config {}
+    # REMOVED: access_config block to prevent assigning external IPs, complying with org policy.
+  }
+
+  # ADDED: Enable Shielded VM to comply with organization policy.
+  shielded_instance_config {
+    enable_secure_boot = true
   }
 
   # Apply the firewall tag
