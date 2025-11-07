@@ -38,7 +38,7 @@ source "googlecompute" "petshop-image-from-apache" {
 
   image_name = var.image_name
   # MODIFIED: Place the new image in the final application family.
-  image_family        = "petshopnode_family"
+  image_family        = "petshopnode-family"
   image_description   = "Debian image with Apache and the Pet Shop website."
   ssh_username        = "packer"
 }
