@@ -62,7 +62,7 @@ te    destination = "/tmp/website/"
       "sudo mv /tmp/website/* /var/www/html/",
       "sudo chown -R www-data:www-data /var/www/html",
       "echo 'Website deployment complete.'",
-      "touch /tmp/2.txt"
+      "touch /tmp/3.txt"
 
     ]
   }
