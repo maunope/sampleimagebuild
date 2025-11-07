@@ -6,10 +6,16 @@ steps:
       - 'https://releases.hashicorp.com/packer/1.10.2/packer_1.10.2_linux_amd64.zip'
     id: 'download-packer'
 
+  # Step 1.1: Install unzip in the ubuntu container
+  - name: 'ubuntu'
+    entrypoint: 'bash'
+    args: ['-c', 'apt-get update && apt-get install -y unzip']
+    id: 'install-unzip'
+
   - name: 'ubuntu'
     entrypoint: 'unzip'
     args: ['-o', 'packer_1.10.2_linux_amd64.zip'] # Use -o to overwrite without prompting
-    waitFor: ['download-packer']
+    waitFor: ['download-packer', 'install-unzip'] # Ensure both download and install are complete
     id: 'unzip-packer'
 
   # Step 2: Validate the Packer template
