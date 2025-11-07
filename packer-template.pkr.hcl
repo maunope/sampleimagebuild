@@ -35,13 +35,11 @@ source "googlecompute" "debian-image" {
   network             = "manual-vpc"
   subnetwork          = "west4subnet"
 
-  # ADDED: Comply with constraints/compute.vmExternalIpAccess
-  no_external_ip      = true
+  #no_external_ip     = true
+  requireShieldedVm  = true
 
-  # ADDED: Comply with constraints/compute.requireShieldedVm
-  shielded_instance_config {
-    enable_secure_boot = true
-  }
+
+  #
   image_name          = var.image_name
   image_description   = "Debian 11 image with custom configurations built by Packer."
   ssh_username        = "packer"
