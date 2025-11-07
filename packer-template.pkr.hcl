@@ -17,7 +17,7 @@ packer {
     # CORRECTED: Use the official registry source and the correct plugin name 'googlecompute'
     googlecompute = {
        source  = "github.com/hashicorp/googlecompute"
-      version = "~> 1.2" 
+      version = "~> 1.2.4" 
     }
   }
 }
@@ -34,7 +34,7 @@ source "googlecompute" "debian-image" {
   subnetwork          = "west4subnet"
 
   # ADDED: Comply with constraints/compute.vmExternalIpAccess
-  #no_external_ip      = true
+  no_external_ip      = true
 
   # ADDED: Comply with constraints/compute.requireShieldedVm
   shielded_instance_config {
