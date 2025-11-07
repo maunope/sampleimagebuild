@@ -32,8 +32,8 @@ source "googlecompute" "debian-image" {
   zone                = "europe-west4-a"
 
   # ADDED: Specify the network and subnetwork for the temporary VM.
-  network             = "manual-vpc"
-  subnetwork          = "west4subnet"
+  network             = "packer-build-vpc"
+  subnetwork          = "packer-build-subnet"
 
   omit_external_ip = true
 
