@@ -77,6 +77,24 @@ steps:
         fi
     waitFor: ['Deploy to MIG']
 
+  # ADDED: Step 6: Clean up old instance templates, keeping the last 3.
+  - id: 'Clean up old instance templates'
+    name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        TEMPLATE_PREFIX="petshop-instance-template-"
+        TEMPLATES_TO_DELETE=$(gcloud compute instance-templates list --project=${_GCP_PROJECT} --filter="name~'^$${TEMPLATE_PREFIX}'" --sort-by="~creationTimestamp" --format="value(name)" | tail -n +4)
+        if [ -z "$$TEMPLATES_TO_DELETE" ]; then
+          echo "No old instance templates to delete."
+        else
+          echo "Deleting old instance templates:"
+          echo "$$TEMPLATES_TO_DELETE"
+          echo "$$TEMPLATES_TO_DELETE" | xargs -r gcloud compute instance-templates delete --project=${_GCP_PROJECT} --quiet
+        fi
+    waitFor: ['Deploy to MIG']
+
 # Specify logging options
 options:
   logging: CLOUD_LOGGING_ONLY
