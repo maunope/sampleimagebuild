@@ -37,6 +37,7 @@ source "googlecompute" "debian-image" {
 
     omit_external_ip = true
   enable_secure_boot  = true
+  use_internal_ip=true
 
 
   #
