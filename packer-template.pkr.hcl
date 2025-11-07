@@ -31,7 +31,7 @@ source "googlecompute" "debian-image" {
 
   # ADDED: Specify the network and subnetwork for the temporary VM.
   # Replace 'your-vpc-name' and 'your-subnetwork-name' with your actual network resources.
-  network             = "your-vpc-name"
+  network             = "manual-vpc"
   subnetwork          = "your-subnetwork-name"
   image_name          = var.image_name
   image_description   = "Debian 11 image with custom configurations built by Packer."
