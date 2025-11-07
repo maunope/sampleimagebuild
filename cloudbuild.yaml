@@ -3,7 +3,7 @@ steps:
   # This step just produces an artifact in the shared /workspace.
   - name: 'gcr.io/cloud-builders/wget'
     args:
-      - 'https://releases.hashicorp.com/packer/1.11.0/packer_1.11.0_linux_amd64.zip'
+      - 'https://releases.hashicorp.com/packer/1.11.1/packer_1.11.1_linux_amd64.zip'
     id: 'download-packer'
 
   # Step 2: Run the entire Packer pipeline in a single, unified step.
@@ -21,7 +21,7 @@ steps:
         apt-get install -y ca-certificates
 
         # Unzip the Packer archive into the current directory (/workspace)
-        unzip -o packer_1.11.0_linux_amd64.zip
+        unzip -o packer_1.11.1_linux_amd64.zip
 
         # Make the extracted 'packer' binary executable
         chmod +x packer
