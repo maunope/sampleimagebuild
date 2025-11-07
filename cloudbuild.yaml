@@ -27,7 +27,7 @@ steps:
         chmod +x packer
 
         # Initialize Packer to download the required 'googlecompute' plugin
-        ./packer init packer-template.pkr.hcl
+        ./packer init -upgrade packer-template.pkr.hcl # Added -upgrade to force re-evaluation
 
         # Validate the Packer template with the provided substitution variables
         ./packer validate \
