@@ -14,17 +14,17 @@ variable "image_name" {
 # Packer block to define required plugins and their versions.
 packer {
   required_plugins {
-    # **FIXED SOURCE:** Use the official HCL registry source for the plugin
+    # CORRECTED: Use the official registry source and the correct plugin name 'googlecompute'
     googlecompute = {
-      source  = "hashicorp/google-compute" # Correct registry path
+      source  = "hashicorp/googlecompute"
       version = "~> 1.4" 
     }
   }
 }
 
 # Define the source image and builder configuration.
-# **FIXED TYPE:** Renamed the source type to 'google-compute' to align with the plugin name
-source "google-compute" "debian-image" {
+# CORRECTED: The source type must match the plugin name 'googlecompute'
+source "googlecompute" "debian-image" {
   project_id          = var.project_id
   source_image_family = "debian-11"
   zone                = "europe-west4-a"
@@ -47,8 +47,8 @@ source "google-compute" "debian-image" {
 
 # The 'build' block defines what Packer will do.
 build {
-  # **FIXED SOURCE REFERENCE:** Updated to reflect the new source type name
-  sources = ["source.google-compute.debian-image"]
+  # CORRECTED: The source reference must match the corrected source type and name
+  sources = ["source.googlecompute.debian-image"]
 
   # Provisioners are used to install software or configure the machine.
   provisioner "shell" {
