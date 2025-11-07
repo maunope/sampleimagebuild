@@ -32,6 +32,7 @@ build {
       "sudo apt-get update",
       "sudo apt-get install -y apache2",
       "touch /tmp/sample-25.txt"
+
     ]
   }
 }
