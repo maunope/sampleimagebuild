@@ -35,8 +35,8 @@ source "googlecompute" "debian-image" {
   network             = "manual-vpc"
   subnetwork          = "west4subnet"
 
-  #no_external_ip     = true
-  requireShieldedVm  = true
+    omit_external_ip = true
+  enable_secure_boot  = true
 
 
   #
@@ -59,3 +59,4 @@ build {
     ]
   }
 }
+
