@@ -49,7 +49,7 @@ build {
 
   # Provisioners are used to install software or configure the machine.
   provisioner "shell" {
-    inline = <<-EOT
+    script = <<-EOT
       set -e
       echo 'Waiting for system to become ready...'
       sleep 15
