@@ -117,10 +117,29 @@ resource "google_dns_managed_zone" "petshop_private_zone" {
 # ADDED: Create a DNS A record for the database instance
 resource "google_dns_record_set" "db_dns_record" {
   name         = "${local.db_name}.${google_dns_managed_zone.petshop_private_zone.dns_name}"
-  managed_zone = google_dns_managed_zone.petshop_private_zone.name # CORRECTED: Typo fixed
+  managed_zone = google_dns_managed_zone.petshop_private_zone.name
   type         = "A"
   ttl          = 300
   rrdatas      = [google_compute_instance.petshop_db_instance.network_interface[0].network_ip]
+}
+
+# -----------------------------------------------------------------------------
+# Logging Configuration
+# -----------------------------------------------------------------------------
+
+# ADDED: Manage the default logging sink to add an exclusion for health checks.
+resource "google_logging_project_sink" "default_sink_exclusion" {
+  name    = "_Default"
+  project = local.project_id
+
+  # This must be set to the destination of the default sink to manage it.
+  destination = "logging.googleapis.com/projects/${local.project_id}/locations/global/buckets/_Default"
+
+  exclusions {
+    name        = "exclude-gcp-health-checks"
+    description = "Exclude logs from Google Cloud health checks to reduce noise."
+    filter      = "httpRequest.userAgent=\"GoogleHC/1.0\""
+  }
 }
 
 # ADDED: Data source to get the latest image from the petshop database family.
@@ -132,7 +151,7 @@ data "google_compute_image" "latest_petshop_db_image" {
 
 # ADDED: Data source to get the latest image from the petshop node family.
 data "google_compute_image" "latest_petshop_node_image" {
-  family  = "custom-apachenode-family"
+  family  = "custom-apachenode-family" # Corrected family name to match Packer output
   project = local.project_id
 }
 
