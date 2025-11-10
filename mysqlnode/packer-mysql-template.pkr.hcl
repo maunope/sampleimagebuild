@@ -59,7 +59,8 @@ build {
       "# MODIFIED: Enable MariaDB to start on boot",
       "sudo systemctl enable mariadb",
       "# MODIFIED: Set root password and allow remote connections for MariaDB",
-      "sudo mysql -e \"ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';\"",
+      "sudo mysql -e \"GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;\"",
+      "sudo mysql -e \"FLUSH PRIVILEGES;\"",
       "sudo sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mysql/mariadb.conf.d/50-server.cnf",
       "echo 'MariaDB installation and configuration complete.'"
     ]
