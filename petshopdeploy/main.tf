@@ -63,6 +63,18 @@ resource "google_compute_firewall" "allow_http" {
   target_tags   = [local.http_tag]
 }
 
+# ADDED: Create a firewall rule to allow HTTPS traffic to tagged instances
+resource "google_compute_firewall" "allow_https" {
+  name    = "${local.vpc_name}-allow-https"
+  network = google_compute_network.petshop_vpc.name
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
+  }
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = [local.http_tag]
+}
+
 # ADDED: Create a firewall rule to allow internal MySQL traffic
 resource "google_compute_firewall" "allow_mysql_internal" {
   name    = "${local.vpc_name}-allow-mysql-internal"
@@ -396,5 +408,3 @@ output "website_ip" {
   description = "The public IP address of the Pet Shop website."
   value       = google_compute_global_forwarding_rule.petshop_forwarding_rule.ip_address
 }
-
-# -----------------------------------------------------------------------------
