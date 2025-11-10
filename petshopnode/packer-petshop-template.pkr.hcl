@@ -51,7 +51,7 @@ build {
   provisioner "shell" {
     inline = [
       "sudo apt-get update -y",
-      "sudo apt-get install -y php libapache2-mod-php php-mysql php-cli php-zip unzip composer rsync",
+      "sudo apt-get install -y php libapache2-mod-php php-mysql php-cli php-zip unzip composer rsync php-curl",
       "sudo a2enmod php7.4", # Enable PHP module for Apache
       "sudo systemctl restart apache2",
     ]
