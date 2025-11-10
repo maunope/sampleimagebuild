@@ -17,6 +17,7 @@ steps:
     args:
       - 'init'
       - '-backend-config=bucket=${PROJECT_ID}-tf-state'
+    dir: 'petshopdeploy' # ADDED: Specify the directory where the .tf files are located.
     waitFor: ['Create GCS Backend Bucket']
 
   # Step 3: Terraform Plan (Optional but recommended)
@@ -25,7 +26,15 @@ steps:
     name: 'hashicorp/terraform:1.8.5'
     entrypoint: 'terraform'
     args: ['plan', '-out=tfplan']
+    dir: 'petshopdeploy' # ADDED: Specify the directory where the .tf files are located.
     waitFor: ['Terraform Init']
+
+  # ADDED: This step pauses the build and waits for a manual approval.
+  # You can review the 'Terraform Plan' output before approving.
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "Approval"
+    args: ["builds", "approve", "$BUILD_ID", "--region", "global"]
+    waitFor: ["Terraform Plan"]
 
   # Step 4: Terraform Apply
   # This step applies the changes defined in the plan.
@@ -33,7 +42,8 @@ steps:
     name: 'hashicorp/terraform:1.8.5'
     entrypoint: 'terraform'
     args: ['apply', '-auto-approve', 'tfplan']
-    waitFor: ['Terraform Plan']
+    dir: 'petshopdeploy' # ADDED: Specify the directory where the .tf files are located.
+    waitFor: ['Approval']
 
 options:
   logging: CLOUD_LOGGING_ONLY
