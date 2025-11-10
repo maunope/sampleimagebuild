@@ -1,0 +1,39 @@
+steps:
+  # Step 1: Create a GCS bucket for the Terraform state if it doesn't exist.
+  # The '|| true' ensures this step doesn't fail if the bucket already exists.
+  - id: 'Create GCS Backend Bucket'
+    name: 'gcr.io/cloud-builders/gsutil'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gsutil mb -p ${PROJECT_ID} -l ${LOCATION} gs://${PROJECT_ID}-tf-state || true
+
+  # Step 2: Initialize Terraform
+  # This step initializes the backend, downloads providers, and sets up the workspace.
+  - id: 'Terraform Init'
+    name: 'hashicorp/terraform:1.8.5' # Using a specific version is a best practice
+    entrypoint: 'terraform'
+    args:
+      - 'init'
+      - '-backend-config=bucket=${PROJECT_ID}-tf-state'
+    waitFor: ['Create GCS Backend Bucket']
+
+  # Step 3: Terraform Plan (Optional but recommended)
+  # This step shows what changes will be applied.
+  - id: 'Terraform Plan'
+    name: 'hashicorp/terraform:1.8.5'
+    entrypoint: 'terraform'
+    args: ['plan', '-out=tfplan']
+    waitFor: ['Terraform Init']
+
+  # Step 4: Terraform Apply
+  # This step applies the changes defined in the plan.
+  - id: 'Terraform Apply'
+    name: 'hashicorp/terraform:1.8.5'
+    entrypoint: 'terraform'
+    args: ['apply', '-auto-approve', 'tfplan']
+    waitFor: ['Terraform Plan']
+
+options:
+  logging: CLOUD_LOGGING_ONLY
