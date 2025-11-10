@@ -151,7 +151,7 @@ data "google_compute_image" "latest_petshop_db_image" {
 
 # ADDED: Data source to get the latest image from the petshop node family.
 data "google_compute_image" "latest_petshop_node_image" {
-  family  = "custom-apachenode-family" # Corrected family name to match Packer output
+  family  = "petshopnode-family" # Corrected to use the final application image family
   project = local.project_id
 }
 
