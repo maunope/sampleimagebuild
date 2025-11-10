@@ -29,13 +29,6 @@ steps:
     dir: 'petshopdeploy' # ADDED: Specify the directory where the .tf files are located.
     waitFor: ['Terraform Init']
 
-  # ADDED: This step pauses the build and waits for a manual approval.
-  # You can review the 'Terraform Plan' output before approving.
-  - name: "gcr.io/cloud-builders/gcloud"
-    id: "Approval"
-    args: ["alpha", "builds", "approve", "$BUILD_ID", "--region", "global"]
-    waitFor: ["Terraform Plan"]
-
   # Step 4: Terraform Apply
   # This step applies the changes defined in the plan.
   - id: 'Terraform Apply'
@@ -43,7 +36,7 @@ steps:
     entrypoint: 'terraform'
     args: ['apply', '-auto-approve', 'tfplan']
     dir: 'petshopdeploy' # ADDED: Specify the directory where the .tf files are located.
-    waitFor: ['Approval']
+    waitFor: ['Terraform Plan']
 
 options:
   logging: CLOUD_LOGGING_ONLY
