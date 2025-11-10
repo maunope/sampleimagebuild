@@ -54,15 +54,14 @@ build {
       "sleep 15",
       "sudo apt-get update -y",
       "sudo apt-get upgrade -y",
-      "# MODIFIED: Install MySQL Server",
-      "sudo apt-get install -y mysql-server",
-      "# MODIFIED: Enable MySQL to start on boot",
-      "sudo systemctl enable mysql",
-      "# MODIFIED: Set root password and allow remote connections",
+      "# MODIFIED: Install MariaDB Server (Debian 11 default)",
+      "sudo apt-get install -y mariadb-server",
+      "# MODIFIED: Enable MariaDB to start on boot",
+      "sudo systemctl enable mariadb",
+      "# MODIFIED: Set root password and allow remote connections for MariaDB",
       "sudo mysql -e \"ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root';\"",
-      "sudo sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mysql/mysql.conf.d/mysqld.cnf",
-      "echo 'MySQL installation and configuration complete.'",
-      "touch /tmp/2.txt"
+      "sudo sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mysql/mariadb.conf.d/50-server.cnf",
+      "echo 'MariaDB installation and configuration complete.'"
     ]
   }
 }
