@@ -57,13 +57,14 @@ build {
   # Use a shell provisioner to move the files into the Apache root.
   provisioner "shell" {
     inline = [
-      "echo 'Copying website files to Apache document root...'",
+      "echo 'Stopping Apache to copy website files...'",
+      "sudo systemctl stop apache2",
       "sudo rm -rf /var/www/html/*",
       "sudo mv /tmp/website/. /var/www/html/",
       "sudo chown -R www-data:www-data /var/www/html",
-      "echo 'Website deployment complete.'",
-      "touch /tmp/4.txt"
-
+      "echo 'Starting Apache...'",
+      "sudo systemctl start apache2",
+      "echo 'Website deployment complete.'"
     ]
   }
 }
