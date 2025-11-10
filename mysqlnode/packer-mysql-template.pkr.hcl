@@ -49,61 +49,52 @@ build {
 
   # Provisioners are used to install software or configure the machine.
   provisioner "shell" {
-    script = <<-EOT
-      set -e
-      echo 'Waiting for system to become ready...'
-      sleep 15
-      sudo apt-get update -y
-      sudo apt-get upgrade -y
-
-      echo "Installing MariaDB Server..."
-      sudo apt-get install -y mariadb-server
-      sudo systemctl enable mariadb
-
-      echo "Configuring MariaDB for remote access and logging..."
-      sudo mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;"
-      sudo mysql -e "FLUSH PRIVILEGES;"
-      sudo sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mysql/mariadb.conf.d/50-server.cnf
-
-      sudo mkdir -p /var/log/mysql
-      sudo touch /var/log/mysql/error.log /var/log/mysql/mysql.log /var/log/mysql/mysql-slow.log
-      sudo chown -R mysql:mysql /var/log/mysql
-
-      sudo sed -i '/^\\[mysqld\\]/a log_error = /var/log/mysql/error.log' /etc/mysql/mariadb.conf.d/50-server.cnf
-      sudo sed -i '/^\\[mysqld\\]/a general_log_file = /var/log/mysql/mysql.log' /etc/mysql/mariadb.conf.d/50-server.cnf
-      sudo sed -i '/^\\[mysqld\\]/a general_log = 1' /etc/mysql/mariadb.conf.d/50-server.cnf
-      sudo sed -i '/^\\[mysqld\\]/a slow_query_log_file = /var/log/mysql/mysql-slow.log' /etc/mysql/mariadb.conf.d/50-server.cnf
-      sudo sed -i '/^\\[mysqld\\]/a slow_query_log = 1' /etc/mysql/mariadb.conf.d/50-server.cnf
-      sudo systemctl restart mariadb
-
-      echo "Installing Google Cloud Ops Agent..."
-      curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
-      sudo bash add-google-cloud-ops-agent-repo.sh --also-install
-
-      echo "Configuring Google Cloud Ops Agent for MariaDB logging..."
-      sudo mkdir -p /etc/google-cloud-ops-agent
-      sudo tee /etc/google-cloud-ops-agent/config.yaml > /dev/null <<'EOF'
-      logging:
-        receivers:
-          mysql_error:
-            type: mysql_error
-          mysql_general:
-            type: mysql_general
-          mysql_slow:
-            type: mysql_slow
-        service:
-          pipelines:
-            mysql:
-              receivers:
-                - mysql_error
-                - mysql_general
-                - mysql_slow
-      EOF
-
-      echo "Restarting Ops Agent to apply configuration..."
-      sudo systemctl restart google-cloud-ops-agent
-
-      echo "MariaDB installation and configuration complete."
-    EOT
+    inline = [
+      "set -e",
+      "echo 'Waiting for system to become ready...'",
+      "sleep 15",
+      "sudo apt-get update -y",
+      "sudo apt-get upgrade -y",
+      "echo 'Installing MariaDB Server...'",
+      "sudo apt-get install -y mariadb-server",
+      "sudo systemctl enable mariadb",
+      "echo 'Configuring MariaDB for remote access and logging...'",
+      "sudo mysql -e \"GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;\"",
+      "sudo mysql -e \"FLUSH PRIVILEGES;\"",
+      "sudo sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mysql/mariadb.conf.d/50-server.cnf",
+      "sudo mkdir -p /var/log/mysql",
+      "sudo touch /var/log/mysql/error.log /var/log/mysql/mysql.log /var/log/mysql/mysql-slow.log",
+      "sudo chown -R mysql:mysql /var/log/mysql",
+      "sudo sed -i '/^\\[mysqld\\]/a log_error = /var/log/mysql/error.log' /etc/mysql/mariadb.conf.d/50-server.cnf",
+      "sudo sed -i '/^\\[mysqld\\]/a general_log_file = /var/log/mysql/mysql.log' /etc/mysql/mariadb.conf.d/50-server.cnf",
+      "sudo sed -i '/^\\[mysqld\\]/a general_log = 1' /etc/mysql/mariadb.conf.d/50-server.cnf",
+      "sudo sed -i '/^\\[mysqld\\]/a slow_query_log_file = /var/log/mysql/mysql-slow.log' /etc/mysql/mariadb.conf.d/50-server.cnf",
+      "sudo sed -i '/^\\[mysqld\\]/a slow_query_log = 1' /etc/mysql/mariadb.conf.d/50-server.cnf",
+      "sudo systemctl restart mariadb",
+      "echo 'Installing Google Cloud Ops Agent...'",
+      "curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh",
+      "sudo bash add-google-cloud-ops-agent-repo.sh --also-install",
+      "echo 'Configuring Google Cloud Ops Agent for MariaDB logging...'",
+      "sudo tee /etc/google-cloud-ops-agent/config.yaml > /dev/null <<'EOF'",
+      "logging:",
+      "  receivers:",
+      "    mysql_error:",
+      "      type: mysql_error",
+      "    mysql_general:",
+      "      type: mysql_general",
+      "    mysql_slow:",
+      "      type: mysql_slow",
+      "  service:",
+      "    pipelines:",
+      "      mysql:",
+      "        receivers:",
+      "          - mysql_error",
+      "          - mysql_general",
+      "          - mysql_slow",
+      "EOF",
+      "echo 'Restarting Ops Agent to apply configuration...'",
+      "sudo systemctl restart google-cloud-ops-agent",
+      "echo 'MariaDB installation and configuration complete.'"
+    ]
   }
 }
