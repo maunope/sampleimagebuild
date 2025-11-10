@@ -1,0 +1,49 @@
+steps:
+  # Step 1: Initialize Packer plugins for the Apache image build
+  - id: 'Packer Init MySQL'
+    name: 'hashicorp/packer:latest'
+    entrypoint: 'packer'
+    args:
+      - 'init'
+      - 'packer-mysql-template.pkr.hcl'
+    dir: 'mysqlnode' # Set the working directory to this folder
+
+  # Step 2: Build the Apache Image
+  - id: 'Packer Build MySQL'
+    name: 'hashicorp/packer:latest'
+    entrypoint: 'packer'
+    args:
+      - 'build'
+      # Pass your variables to the build command
+      - '-var'
+      - 'project_id=${_GCP_PROJECT}'
+      - '-var'
+      - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
+      - 'packer-mysql-template.pkr.hcl'
+    dir: 'mysqlnode' # Set the working directory to this folder
+    waitFor: ['Packer Init MySQL'] # Ensure initialization is complete
+
+  # ADDED: Step 3: Clean up old images in the family, keeping the last 3.
+  - id: 'Clean up old MySQL images'
+    name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        FAMILY="custom-mysqlnode-family"
+        IMAGES_TO_DELETE=$(gcloud compute images list --project=${_GCP_PROJECT} --filter="family=$${FAMILY}" --sort-by="~creationTimestamp" --format="value(name)" | tail -n +4)
+        if [ -z "$$IMAGES_TO_DELETE" ]; then
+          echo "No old images to delete for family $${FAMILY}."
+        else
+          echo "Deleting old images for family $${FAMILY}:"
+          echo "$$IMAGES_TO_DELETE"
+          echo "$$IMAGES_TO_DELETE" | xargs -r gcloud compute images delete --project=${_GCP_PROJECT} --quiet
+        fi
+    waitFor: ['Packer Build MySQL']
+
+# Specify logging options
+options:
+  logging: CLOUD_LOGGING_ONLY
+  # Use the same private pool for this build
+  pool: 
+    name: 'projects/mnosedademo/locations/europe-west4/workerPools/packer_private_pool'
