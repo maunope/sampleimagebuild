@@ -59,10 +59,10 @@ build {
     inline = [
       "echo 'Copying website files to Apache document root...'",
       "sudo rm -rf /var/www/html/*",
-      "sudo mv /tmp/website/* /var/www/html/",
+      "sudo mv /tmp/website/. /var/www/html/",
       "sudo chown -R www-data:www-data /var/www/html",
       "echo 'Website deployment complete.'",
-      "touch /tmp/3.txt"
+      "touch /tmp/4.txt"
 
     ]
   }
