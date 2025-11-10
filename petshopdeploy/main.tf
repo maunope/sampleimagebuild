@@ -396,3 +396,5 @@ output "website_ip" {
   description = "The public IP address of the Pet Shop website."
   value       = google_compute_global_forwarding_rule.petshop_forwarding_rule.ip_address
 }
+
+# -----------------------------------------------------------------------------
