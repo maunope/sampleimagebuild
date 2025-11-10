@@ -49,61 +49,42 @@ build {
 
   # Provisioners are used to install software or configure the machine.
   provisioner "shell" {
-    inline = [
-      "echo 'Waiting for system to become ready...'",
-      "sleep 15",
-      "sudo apt-get update -y",
-      "sudo apt-get upgrade -y",
-      "# MODIFIED: Install Apache web server and PHP",
-      "sudo apt-get install -y apache2 php libapache2-mod-php php-mysql",
-      "# MODIFIED: Enable Apache to start on boot",
-      "sudo systemctl enable apache2",
-      "echo 'Apache and PHP installation complete.'",
-      "# ADDED: Configure Ops Agent to ship Apache logs to Cloud Logging",
-      "sudo bash -c 'cat <<EOF >> /etc/google-cloud-ops-agent/config.yaml
-logging:
-  receivers:
-    apache_access:
-      type: files
-      include_paths:
-        - /var/log/apache2/access.log
-    apache_error:
-      type: files
-      include_paths:
-        - /var/log/apache2/error.log
-  processors:
-    apache_access_parser:
-      type: apache_access
-      field_name: message
-    apache_error_parser:
-      type: apache_error
-      field_name: message
-  service:
-    pipelines:
-      apache_access:
-        receivers: [apache_access]
-        processors: [apache_access_parser]
-      apache_error:
-        receivers: [apache_error]
-        processors: [apache_error_parser]
-EOF'",
-      "sudo systemctl restart google-cloud-ops-agent",
-      "echo 'Ops Agent configured for Apache logs and restarted.'",
-      "# MODIFIED: Create a dynamic PHP index page",
-      "sudo rm /var/www/html/index.html",
-      "sudo bash -c 'cat > /var/www/html/index.php <<EOF",
-      "<!DOCTYPE html>",
-      "<html>",
-      "<head><title>Apache & PHP</title></head>",
-      "<body><h1>Hello from your dynamic website!</h1>",
-      "<p>Your IP address is: <?php echo $_SERVER[\\\"REMOTE_ADDR\\\"]; ?></p>",
-      "<p><a href=\\\"phpinfo.php\\\">View PHP Info</a></p>",
-      "</body></html>",
-      "EOF'",
-      "# ADDED: Create a phpinfo page for diagnostics",
-      "sudo bash -c 'cat > /var/www/html/phpinfo.php <<EOF",
-      "<?php phpinfo(); ?>",
-      "EOF'"
-    ]
+   inline = <<-EOT
+      set -e
+      echo 'Waiting for system to become ready...'
+      sleep 15
+      sudo apt-get update -y
+      sudo apt-get upgrade -y
+      
+      echo "Installing Apache2..."
+      sudo apt-get install -y apache2
+      sudo systemctl enable apache2
+      
+      echo "Installing Google Cloud Ops Agent..."
+      curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+      sudo bash add-google-cloud-ops-agent-repo.sh --also-install
+      
+      echo "Configuring Google Cloud Ops Agent for Apache logging..."
+      sudo mkdir -p /etc/google-cloud-ops-agent
+      sudo tee /etc/google-cloud-ops-agent/config.yaml > /dev/null <<'EOF'
+      logging:
+        receivers:
+          apache_access:
+            type: apache_access
+          apache_error:
+            type: apache_error
+        service:
+          pipelines:
+            apache:
+              receivers:
+                - apache_access
+                - apache_error
+      EOF
+      
+      echo "Restarting Ops Agent to apply configuration..."
+      sudo systemctl restart google-cloud-ops-agent
+      
+      echo "Apache installation and configuration complete."
+    EOT
   }
 }
