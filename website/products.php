@@ -1,4 +1,11 @@
 <!DOCTYPE html>
+<?php
+
+require __DIR__ . '/vendor/autoload.php'; // Composer autoloader
+
+use Google\Cloud\SecretManager\V1\SecretManagerServiceClient;
+
+?>
 <html lang="en">
 
 <head>
@@ -115,31 +122,68 @@
         <div class="container">
             <ul class="product-list">
                 <?php
-                // Database connection details
-                $servername = "petshop-db.petshop.internal";
-                $username = "root";
-                $password = "root";
-                $dbname = "petshop";
 
-                // Create connection
-                $conn = new mysqli($servername, $username, $password, $dbname);
+                // Function to get database credentials from Secret Manager with caching
+                function getDbCredentials() {
+                    static $credentials = null; // Static variable for in-memory caching within the request
 
-                // Check connection
-                if ($conn->connect_error) {
+                    if ($credentials === null) {
+                        // Create the Secret Manager client
+                        $client = new SecretManagerServiceClient();
+
+                        // The name of the secret to access (using the provided project ID)
+                        $secretName = 'projects/553798289281/secrets/petshop-db-credentials';
+
+                        try {
+                            // Access the secret version
+                            $response = $client->accessSecretVersion($secretName . '/versions/latest');
+                            $secretPayload = $response->getPayload()->getData();
+
+                            // Decode the JSON payload
+                            $credentials = json_decode($secretPayload, true);
+
+                            if (json_last_error() !== JSON_ERROR_NONE) {
+                                error_log("Error decoding secret payload: " . json_last_error_msg());
+                                $credentials = false; // Indicate failure
+                            }
+
+                        } catch (Exception $e) {
+                            error_log("Failed to access secret: " . $e->getMessage());
+                            $credentials = false; // Indicate failure
+                        } finally {
+                            $client->close();
+                        }
+                    }
+                    return $credentials;
+                }
+
+                $dbCredentials = getDbCredentials();
+                $servername = "petshop-db.petshop.internal"; // Still use the internal DNS name
+                $dbname = "petshop"; // Database name
+
+                if ($dbCredentials === false || !isset($dbCredentials['username']) || !isset($dbCredentials['password'])) {
                     echo "<li>Database connection failed. Please try again later.</li>";
                 } else {
-                    $sql = "SELECT id, name FROM products";
-                    $result = $conn->query($sql);
+                    // Create connection
+                    $conn = new mysqli($servername, $dbCredentials['username'], $dbCredentials['password'], $dbname);
 
-                    if ($result->num_rows > 0) {
-                        // output data of each row
-                        while($row = $result->fetch_assoc()) {
-                            echo "<li>" . htmlspecialchars($row["name"]) . "</li>";
-                        }
+                    // Check connection
+                    if ($conn->connect_error) {
+                        echo "<li>Database connection failed: " . $conn->connect_error . "</li>";
                     } else {
-                        echo "<li>No products found. Check back soon!</li>";
+                        $sql = "SELECT id, name FROM products";
+                        $result = $conn->query($sql);
+
+                        if ($result->num_rows > 0) {
+                            // output data of each row
+                            while($row = $result->fetch_assoc()) {
+                                echo "<li>" . htmlspecialchars($row["name"]) . "</li>";
+                            }
+                        } else {
+                            echo "<li>No products found. Check back soon!</li>";
+                        }
+                        $conn->close();
                     }
-                    $conn->close();
                 }
                 ?>
             </ul>

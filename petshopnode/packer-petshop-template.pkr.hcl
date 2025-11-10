@@ -47,23 +47,33 @@ source "googlecompute" "petshop-image-from-apache" {
 build {
   sources = ["source.googlecompute.petshop-image-from-apache"]
 
+  # ADDED: Install PHP and Composer dependencies
+  provisioner "shell" {
+    inline = [
+      "sudo apt-get update -y",
+      "sudo apt-get install -y php libapache2-mod-php php-mysql php-cli php-zip unzip composer",
+      "sudo a2enmod php", # Enable PHP module for Apache
+      "sudo systemctl restart apache2",
+    ]
+  }
+
   # ADDED: Use a file provisioner to upload the website files.
   # The source path is relative to the 'petshopnode' directory where the build runs.
   provisioner "file" {
     source      = "../website"
     destination = "/tmp/website/"
   }
-
-  # Use a shell provisioner to move the files into the Apache root.
   provisioner "shell" {
     inline = [
-      "echo 'Stopping Apache to copy website files...'",
-      "sudo systemctl stop apache2",
+      "# The rsync command is more robust for copying files into a live service directory.",
+      "# It avoids 'device or resource busy' errors that can occur with 'mv'.",
+      "echo 'Syncing website files to Apache document root...'",
       "sudo rm -rf /var/www/html/*",
-      "sudo mv /tmp/website/. /var/www/html/",
+      "sudo rsync -a /tmp/website/ /var/www/html/",
+      "cd /var/www/html", # Change to web root to run composer
+      "composer install --no-dev --optimize-autoloader", # Install PHP dependencies
       "sudo chown -R www-data:www-data /var/www/html",
-      "echo 'Starting Apache...'",
-      "sudo systemctl start apache2",
+      "sudo systemctl restart apache2", # Restart Apache after file changes and composer install
       "echo 'Website deployment complete.'"
     ]
   }

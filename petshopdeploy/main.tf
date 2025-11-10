@@ -117,7 +117,7 @@ resource "google_dns_managed_zone" "petshop_private_zone" {
 # ADDED: Create a DNS A record for the database instance
 resource "google_dns_record_set" "db_dns_record" {
   name         = "${local.db_name}.${google_dns_managed_zone.petshop_private_zone.dns_name}"
-  managed_zone = google_dns_manåaged_zone.petshop_private_zone.name
+  managed_zone = google_dns_managed_zone.petshop_private_zone.name # CORRECTED: Typo fixed
   type         = "A"
   ttl          = 300
   rrdatas      = [google_compute_instance.petshop_db_instance.network_interface[0].network_ip]
@@ -126,15 +126,89 @@ resource "google_dns_record_set" "db_dns_record" {
 # ADDED: Data source to get the latest image from the petshop database family.
 # This will be used to trigger an update when a new image is available.
 data "google_compute_image" "latest_petshop_db_image" {
-  family  = "custom-mysqlnode-family" # Corrected family name to match Packer output
+  family  = "custom-mysqlnode-family"
   project = local.project_id
 }
 
 # ADDED: Data source to get the latest image from the petshop node family.
 data "google_compute_image" "latest_petshop_node_image" {
-  family  = "custom-apachenode-family" # Corrected family name to match Packer output
+  family  = "custom-apachenode-family"
   project = local.project_id
 }
+
+# -----------------------------------------------------------------------------
+# Secret Manager for DB Credentials
+# -----------------------------------------------------------------------------
+
+# ADDED: Create a secret to hold the database credentials
+resource "google_secret_manager_secret" "db_credentials" {
+  secret_id = "petshop-db-credentials"
+  project   = local.project_id
+
+  replication {
+    auto {} # CORRECTED: Used 'auto {}' for automatic replication
+  }
+}
+
+# ADDED: Add a version to the secret with the database credentials
+resource "google_secret_manager_secret_version" "db_credentials_version" {
+  secret = google_secret_manager_secret.db_credentials.id
+  secret_data = jsonencode({
+    username = "root"
+    password = "root"
+  })
+}
+
+# -----------------------------------------------------------------------------
+# Application Service Account
+# -----------------------------------------------------------------------------
+
+# ADDED: Create a dedicated service account for the Pet Shop application instances.
+resource "google_service_account" "petshop_sa" {
+  account_id   = "petshopsa"
+  display_name = "Pet Shop Application Service Account"
+  project      = local.project_id
+}
+
+# ADDED: Grant the new service account the minimum necessary roles for its function.
+resource "google_project_iam_member" "petshop_sa_minimal_roles" {
+  for_each = toset([
+    "roles/logging.logWriter",       # To write logs
+    "roles/monitoring.metricWriter", # To write metrics
+  ])
+  project = local.project_id
+  role    = each.key
+  member  = google_service_account.petshop_sa.member
+}
+
+# ADDED: Grant the new service account access to the database credentials secret.
+resource "google_secret_manager_secret_iam_member" "petshop_sa_secret_accessor" {
+  project   = google_secret_manager_secret.db_credentials.project
+  secret_id = google_secret_manager_secret.db_credentials.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = google_service_account.petshop_sa.member
+
+  depends_on = [google_secret_manager_secret_version.db_credentials_version]
+}
+
+# ADDED: Create a dedicated service account for the Pet Shop database instance.
+resource "google_service_account" "petshop_db_sa" {
+  account_id   = "petshopdbsa"
+  display_name = "Pet Shop Database Service Account"
+  project      = local.project_id
+}
+
+# ADDED: Grant the database service account the minimum necessary roles.
+resource "google_project_iam_member" "petshop_db_sa_minimal_roles" {
+  for_each = toset([
+    "roles/logging.logWriter",       # To write logs
+    "roles/monitoring.metricWriter", # To write metrics
+  ])
+  project = local.project_id
+  role    = each.key
+  member  = google_service_account.petshop_db_sa.member
+}
+
 
 # -----------------------------------------------------------------------------
 # 3. Instance Template and Managed Instance Group (MIG)
@@ -156,6 +230,12 @@ resource "google_compute_instance_template" "petshop_template" {
   network_interface {
     subnetwork = google_compute_subnetwork.petshop_subnet.id
     # No access_config block to prevent assigning external IPs, complying with org policy.
+  }
+
+  # ADDED: Assign the dedicated service account to the instance template (MIG instances).
+  service_account {
+    email  = google_service_account.petshop_sa.email
+    scopes = ["cloud-platform"] # Use full cloud-platform scope and control permissions with IAM roles
   }
 
   # Enable Shielded VM to comply with organization policy.
@@ -184,6 +264,12 @@ resource "google_compute_instance" "petshop_db_instance" {
       image = data.google_compute_image.latest_petshop_db_image.self_link
     }
     auto_delete = true
+  }
+
+  # ADDED: Assign the dedicated service account to the database instance.
+  service_account {
+    email  = google_service_account.petshop_db_sa.email
+    scopes = ["cloud-platform"]
   }
 
   # Configure networking
