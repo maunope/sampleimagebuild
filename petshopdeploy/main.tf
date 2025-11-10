@@ -22,10 +22,10 @@ locals {
   region        = "europe-west4"
   vpc_name      = "petshop-vpc"
   db_name       = "petshop-db"
-  dns_zone_name = "petshop-private-zone"  
-  dns_name      = "petshop.internal."  
-  http_tag      = "allow-http"  
-  db_tag        = "allow-mysql"  
+  dns_zone_name = "petshop-private-zone"
+  dns_name      = "petshop.internal."
+  http_tag      = "allow-http"
+  db_tag        = "allow-mysql"
 }
 
 # -----------------------------------------------------------------------------
@@ -117,36 +117,23 @@ resource "google_dns_managed_zone" "petshop_private_zone" {
 # ADDED: Create a DNS A record for the database instance
 resource "google_dns_record_set" "db_dns_record" {
   name         = "${local.db_name}.${google_dns_managed_zone.petshop_private_zone.dns_name}"
-  managed_zone = google_dns_managed_zone.petshop_private_zone.name
+  managed_zone = google_dns_manåaged_zone.petshop_private_zone.name
   type         = "A"
   ttl          = 300
   rrdatas      = [google_compute_instance.petshop_db_instance.network_interface[0].network_ip]
 }
 
-  # Use the latest image from the petshopnode-family
-  disk {
-    source_image = "projects/${local.project_id}/global/images/family/petshopnode-family"
-    auto_delete  = true
-    boot         = true
-  }
+# ADDED: Data source to get the latest image from the petshop database family.
+# This will be used to trigger an update when a new image is available.
+data "google_compute_image" "latest_petshop_db_image" {
+  family  = "custom-mysqlnode-family" # Corrected family name to match Packer output
+  project = local.project_id
+}
 
-  # Configure networking
-  network_interface {
-    subnetwork = google_compute_subnetwork.petshop_subnet.id
-    # REMOVED: access_config block to prevent assigning external IPs, complying with org policy.
-  }
-
-  # ADDED: Enable Shielded VM to comply with organization policy.
-  shielded_instance_config {
-    enable_secure_boot = true
-  }
-
-  # Apply the firewall tag
-  tags = [local.http_tag]
-
-  lifecycle {
-    create_before_destroy = true
-  }
+# ADDED: Data source to get the latest image from the petshop node family.
+data "google_compute_image" "latest_petshop_node_image" {
+  family  = "custom-apachenode-family" # Corrected family name to match Packer output
+  project = local.project_id
 }
 
 # -----------------------------------------------------------------------------
@@ -157,6 +144,32 @@ resource "google_dns_record_set" "db_dns_record" {
 resource "google_compute_instance_template" "petshop_template" {
   name_prefix  = "petshop-instance-template-"
   machine_type = "e2-small"
+
+  # Use the latest image from the petshopnode-family
+  disk {
+    source_image = data.google_compute_image.latest_petshop_node_image.self_link
+    auto_delete  = true
+    boot         = true
+  }
+
+  # Configure networking
+  network_interface {
+    subnetwork = google_compute_subnetwork.petshop_subnet.id
+    # No access_config block to prevent assigning external IPs, complying with org policy.
+  }
+
+  # Enable Shielded VM to comply with organization policy.
+  shielded_instance_config {
+    enable_secure_boot = true
+  }
+
+  # Apply the firewall tag
+  tags = [local.http_tag]
+
+  # Lifecycle rule to ensure the new instance template is created before the old one is destroyed.
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # ADDED: Create a dedicated instance for the MySQL database
@@ -168,7 +181,7 @@ resource "google_compute_instance" "petshop_db_instance" {
   # Use the latest image from the petshopdatabasenode-family
   boot_disk {
     initialize_params {
-      image = "projects/${local.project_id}/global/images/family/petshopdatabasenode-family"
+      image = data.google_compute_image.latest_petshop_db_image.self_link
     }
     auto_delete = true
   }
@@ -184,6 +197,12 @@ resource "google_compute_instance" "petshop_db_instance" {
   }
 
   tags = [local.db_tag]
+
+  # ADDED: Lifecycle rule to ensure the new instance is created before the old one is destroyed.
+  # This minimizes downtime during an image update.
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Create a regional Managed Instance Group (MIG)
