@@ -55,7 +55,7 @@ build {
       "# MODIFIED: Create petshop database and products table",
       "sudo mysql -u root -proot -e 'CREATE DATABASE petshop;'",
       "sudo mysql -u root -proot -e 'USE petshop; CREATE TABLE products (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255));'",
-      "sudo mysql -u root -proot -e 'USE petshop; INSERT INTO products (name) VALUES (\\\"Golden Retriever\\\"), (\\\"Siamese Cat\\\"), (\\\"Parrot\\\");'",
+      "sudo mysql -u root -proot -e 'USE petshop; INSERT INTO products (name) VALUES (\\\"Golden Retriever\\\"), (\\\"Siamese Cat\\\"), (\\\"Parrot\\\"), (\\\"Goldfish\\\"), (\\\"Hamster\\\"), (\\\"Canary\\\"), (\\\"Iguana\\\"), (\\\"Ferret\\\"), (\\\"Rabbit\\\"), (\\\"Turtle\\\");'",
       "echo 'Petshop database and table created successfully.'"
     ]
   }
