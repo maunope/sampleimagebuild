@@ -10,6 +10,11 @@ terraform {
       version = "~> 5.20"
     }
   }
+  # ADDED: Configure the GCS backend for storing Terraform state.
+  # The bucket name will be passed in during the 'terraform init' step.
+  backend "gcs" {
+    prefix = "petshop-deploy"
+  }
 }
 
 provider "google" {
