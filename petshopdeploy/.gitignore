@@ -25,3 +25,4 @@ terraform.rc
 
 # Ignore the provider lock file
 .terraform.lock.hcl
+*.backup
