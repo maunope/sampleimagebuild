@@ -251,10 +251,11 @@ resource "google_compute_instance_template" "petshop_template" {
     # No access_config block to prevent assigning external IPs, complying with org policy.
   }
 
-  # ADDED: Assign the dedicated service account to the instance template (MIG instances).
+  # FIXED: Assign the dedicated service account with the full cloud-platform scope URI.
   service_account {
-    email  = google_service_account.petshop_sa.email
-    scopes = ["cloud-platform"] # Use full cloud-platform scope and control permissions with IAM roles
+    email = google_service_account.petshop_sa.email
+    # Using the full URI ensures the instance can generate tokens to call Secret Manager API.
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
   # Enable Shielded VM to comply with organization policy.
@@ -285,10 +286,11 @@ resource "google_compute_instance" "petshop_db_instance" {
     auto_delete = true
   }
 
-  # ADDED: Assign the dedicated service account to the database instance.
+  # FIXED: Assign the dedicated service account with the full cloud-platform scope URI.
   service_account {
-    email  = google_service_account.petshop_db_sa.email
-    scopes = ["cloud-platform"]
+    email = google_service_account.petshop_db_sa.email
+    # Using the full URI for best practice and consistency.
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
   # Configure networking
