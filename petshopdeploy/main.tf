@@ -18,10 +18,14 @@ provider "google" {
 }
 
 locals {
-  project_id = "mnosedademo"
-  region     = "europe-west4"
-  vpc_name   = "petshop-vpc"
-  http_tag   = "allow-http"
+  project_id    = "mnosedademo"
+  region        = "europe-west4"
+  vpc_name      = "petshop-vpc"
+  db_name       = "petshop-db"
+  dns_zone_name = "petshop-private-zone"  
+  dns_name      = "petshop.internal."  
+  http_tag      = "allow-http"  
+  db_tag        = "allow-mysql"  
 }
 
 # -----------------------------------------------------------------------------
@@ -54,6 +58,20 @@ resource "google_compute_firewall" "allow_http" {
   target_tags   = [local.http_tag]
 }
 
+# ADDED: Create a firewall rule to allow internal MySQL traffic
+resource "google_compute_firewall" "allow_mysql_internal" {
+  name    = "${local.vpc_name}-allow-mysql-internal"
+  network = google_compute_network.petshop_vpc.name
+  allow {
+    protocol = "tcp"
+    ports    = ["3306"]
+  }
+  # Only allow traffic from within the same subnet
+  source_ranges = [google_compute_subnetwork.petshop_subnet.ip_cidr_range]
+  # Apply this rule only to instances with the 'allow-mysql' tag
+  target_tags = [local.db_tag]
+}
+
 # ADDED: Create a router for the NAT gateway
 resource "google_compute_router" "petshop_router" {
   name    = "petshop-router"
@@ -79,13 +97,31 @@ resource "google_compute_router_nat" "petshop_nat" {
 }
 
 # -----------------------------------------------------------------------------
-# 3. Instance Template and Managed Instance Group (MIG)
+# 3. Cloud DNS Private Zone
 # -----------------------------------------------------------------------------
 
-# Create an instance template using the final Pet Shop image
-resource "google_compute_instance_template" "petshop_template" {
-  name_prefix  = "petshop-instance-template-"
-  machine_type = "e2-small"
+# ADDED: Create a private DNS zone for service discovery
+resource "google_dns_managed_zone" "petshop_private_zone" {
+  name        = local.dns_zone_name
+  dns_name    = local.dns_name
+  description = "Private DNS zone for the Petshop application"
+  visibility  = "private"
+
+  private_visibility_config {
+    networks {
+      network_url = google_compute_network.petshop_vpc.id
+    }
+  }
+}
+
+# ADDED: Create a DNS A record for the database instance
+resource "google_dns_record_set" "db_dns_record" {
+  name         = "${local.db_name}.${google_dns_managed_zone.petshop_private_zone.dns_name}"
+  managed_zone = google_dns_managed_zone.petshop_private_zone.name
+  type         = "A"
+  ttl          = 300
+  rrdatas      = [google_compute_instance.petshop_db_instance.network_interface[0].network_ip]
+}
 
   # Use the latest image from the petshopnode-family
   disk {
@@ -113,6 +149,43 @@ resource "google_compute_instance_template" "petshop_template" {
   }
 }
 
+# -----------------------------------------------------------------------------
+# 3. Instance Template and Managed Instance Group (MIG)
+# -----------------------------------------------------------------------------
+
+# Create an instance template using the final Pet Shop image
+resource "google_compute_instance_template" "petshop_template" {
+  name_prefix  = "petshop-instance-template-"
+  machine_type = "e2-small"
+}
+
+# ADDED: Create a dedicated instance for the MySQL database
+resource "google_compute_instance" "petshop_db_instance" {
+  name         = local.db_name
+  machine_type = "e2-small"
+  zone         = "${local.region}-a"
+
+  # Use the latest image from the petshopdatabasenode-family
+  boot_disk {
+    initialize_params {
+      image = "projects/${local.project_id}/global/images/family/petshopdatabasenode-family"
+    }
+    auto_delete = true
+  }
+
+  # Configure networking
+  network_interface {
+    subnetwork = google_compute_subnetwork.petshop_subnet.id
+    # No access_config to keep the instance internal
+  }
+
+  shielded_instance_config {
+    enable_secure_boot = true
+  }
+
+  tags = [local.db_tag]
+}
+
 # Create a regional Managed Instance Group (MIG)
 resource "google_compute_region_instance_group_manager" "petshop_mig" {
   name   = "petshop-mig"
@@ -123,7 +196,7 @@ resource "google_compute_region_instance_group_manager" "petshop_mig" {
   }
 
   base_instance_name = "petshop-vm"
-  target_size        = 1
+  target_size        = 2
 
   # ADDED: Map the port name used by the backend service to a port number.
   named_port {
