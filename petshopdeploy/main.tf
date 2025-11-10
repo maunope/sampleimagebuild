@@ -126,7 +126,7 @@ resource "google_dns_record_set" "db_dns_record" {
 # ADDED: Data source to get the latest image from the petshop database family.
 # This will be used to trigger an update when a new image is available.
 data "google_compute_image" "latest_petshop_db_image" {
-  family  = "custom-mysqlnode-family"
+  family  = "petshopdatabasenode-family"
   project = local.project_id
 }
 
