@@ -39,7 +39,7 @@ source "googlecompute" "apache-image-from-custom-debian" {
   image_name = var.image_name
   # MODIFIED: Place the new image in a new family.
   image_family        = "custom-apachenode-family"
-  image_description   = "Debian 11 image with Apache, built on top of the custom-debian-family."
+  image_description   = "Debian 11 image with Apache and PHP, built on top of the custom-debian-family."
   ssh_username        = "packer"
 }
 
@@ -54,11 +54,11 @@ build {
       "sleep 15",
       "sudo apt-get update -y",
       "sudo apt-get upgrade -y",
-      "# MODIFIED: Install Apache web server",
-      "sudo apt-get install -y apache2",
+      "# MODIFIED: Install Apache web server and PHP",
+      "sudo apt-get install -y apache2 php libapache2-mod-php",
       "# MODIFIED: Enable Apache to start on boot",
       "sudo systemctl enable apache2",
-      "echo 'Apache installation complete.'",
+      "echo 'Apache and PHP installation complete.'",
       "touch /tmp/1.txt"
     ]
   }
