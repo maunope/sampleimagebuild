@@ -1,0 +1,456 @@
+# -----------------------------------------------------------------------------
+# 1. Configuration, Providers, and Variables
+# -----------------------------------------------------------------------------
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.20"
+    }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "~> 5.20"
+    }
+  }
+}
+
+# ADDED: Explicit provider configuration. This tells Terraform how to
+# configure and use the providers declared above.
+provider "google" {
+  project = local.project_id
+}
+
+provider "google-beta" {
+  project = local.project_id
+  alias   = "beta"
+}
+
+
+locals {
+  project_id                       = "mnosedademo"
+  region                           = "europe-west4"
+  github_owner                     = "maunope"
+  github_repo                      = "sampleimagebuild"
+  debian_ops_agent_image_name      = "debian-ops-agent-image"
+  apache_node_image_name           = "apache-node-image"
+  petshop_node_image_name          = "petshop-node-image"
+  mysql_node_image_name            = "mysql-node-image"
+  petshop_database_node_image_name = "petshop-database-node-image"
+}
+
+# -----------------------------------------------------------------------------
+# 2. API and Service Enablement
+# -----------------------------------------------------------------------------
+resource "google_project_service" "enabled_apis" {
+  for_each = toset([
+    "cloudbuild.googleapis.com",
+    "compute.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
+    "iam.googleapis.com",
+    "securesourcemanager.googleapis.com",
+    "servicenetworking.googleapis.com", # Required for VPC peering for the private pool
+  ])
+  project            = local.project_id
+  service            = each.key
+  disable_on_destroy = false
+}
+
+# -----------------------------------------------------------------------------
+# 3. Networking (VPC, Subnet, NAT)
+# -----------------------------------------------------------------------------
+
+# Create a custom VPC for the build environment
+resource "google_compute_network" "build_vpc" {
+  project                 = local.project_id
+  name                    = "packer-build-vpc"
+  auto_create_subnetworks = false
+  depends_on              = [google_project_service.enabled_apis]
+}
+
+# Create a subnet in the specified region
+resource "google_compute_subnetwork" "build_subnet" {
+  project                  = local.project_id
+  name                     = "packer-build-subnet"
+  ip_cidr_range            = "10.10.0.0/24"
+  region                   = local.region
+  network                  = google_compute_network.build_vpc.id
+  private_ip_google_access = true
+}
+
+# Reserve an IP range for the Service Networking API, required for the private pool
+resource "google_compute_global_address" "private_service_access_range" {
+  project       = local.project_id
+  name          = "private-service-access-for-packer-pool"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = google_compute_network.build_vpc.id
+}
+
+# Establish the VPC peering connection for the private pool
+resource "google_service_networking_connection" "private_service_access_connection" {
+  network                 = google_compute_network.build_vpc.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_service_access_range.name]
+  depends_on              = [google_project_service.enabled_apis]
+}
+
+# Create a router for the NAT gateway
+resource "google_compute_router" "build_router" {
+  project = local.project_id
+  name    = "packer-build-router"
+  region  = local.region
+  network = google_compute_network.build_vpc.id
+}
+
+# Create the Cloud NAT gateway to allow egress traffic from the private pool
+resource "google_compute_router_nat" "build_nat" {
+  project                            = local.project_id
+  name                               = "packer-build-nat-gateway"
+  router                             = google_compute_router.build_router.name
+  region                             = local.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
+  subnetwork {
+    name                    = google_compute_subnetwork.build_subnet.id
+    source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
+  }
+  log_config {
+    enable = true
+    filter = "ERRORS_ONLY"
+  }
+}
+
+
+resource "google_compute_firewall" "allow_ssh_from_anywhere" {
+  project = local.project_id
+  name    = "packer-build-vpc-allow-ssh"
+  network = google_compute_network.build_vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  description   = "Allow SSH access from anywhere for Packer builds"
+}
+
+# -----------------------------------------------------------------------------
+# 4. Cloud Build Private Worker Pool
+# -----------------------------------------------------------------------------
+
+
+resource "google_cloudbuild_worker_pool" "packer_private_pool" {
+  name     = "packer_private_pool"
+  location = "europe-west4"
+  worker_config {
+    disk_size_gb   = 100
+    machine_type   = "e2-standard-4"
+    no_external_ip = false
+  }
+  network_config {
+    peered_network          = google_compute_network.build_vpc.id
+    peered_network_ip_range = "/29"
+  }
+  depends_on = [google_service_networking_connection.private_service_access_connection]
+}
+
+# -----------------------------------------------------------------------------
+# 5. Service Accounts and IAM Permissions
+# -----------------------------------------------------------------------------
+
+# Get the default Cloud Build Service Account identity
+data "google_project" "project" {
+  project_id = local.project_id
+}
+
+locals {
+  cloudbuild_sa = "service-${data.google_project.project.number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+}
+
+# Grant required roles to the default Cloud Build Service Account
+resource "google_project_iam_member" "cloudbuild_sa_roles" {
+  for_each = toset([
+    "roles/cloudbuild.builds.builder",         // Cloud Build Service Account
+    "roles/logging.logWriter",                 // Logs Writer
+    "roles/serviceusage.serviceUsageConsumer", // Service Usage Consumer
+    "roles/storage.objectCreator",             // Storage Object Creator
+  ])
+  project    = local.project_id
+  role       = each.key
+  member     = "serviceAccount:${local.cloudbuild_sa}"
+  depends_on = [google_project_service.enabled_apis]
+}
+
+# Create a dedicated service account for the Packer build trigger
+resource "google_service_account" "packer_builder_sa" {
+  project      = local.project_id
+  account_id   = "packer-builder"
+  display_name = "Packer Image Builder Service Account"
+}
+
+# Grant required roles to the Packer builder service account
+resource "google_project_iam_member" "packer_builder_sa_roles" {
+  for_each = toset([
+    # Original roles for Packer and basic TF state management
+    "roles/cloudbuild.builds.builder",
+    "roles/compute.admin",
+    "roles/compute.imageUser", # Compute Image User
+    "roles/iam.serviceAccountUser",
+    "roles/storage.admin",
+    # Roles for managing specific resources in the petshop deployment
+    "roles/dns.admin",
+    "roles/logging.configWriter",
+    "roles/logging.logWriter", # Logs Writer
+    "roles/secretmanager.admin",
+    "roles/secretmanager.secretAccessor", # Secret Manager Secret Accessor
+    "roles/resourcemanager.projectIamAdmin",
+    # Add Editor role on top to ensure all permissions
+    "roles/editor"
+  ])
+  project = local.project_id
+  role    = each.key
+  member  = google_service_account.packer_builder_sa.member
+}
+
+# ADDED: Grant the default Compute Engine service account permission to use custom images.
+# This is critical for Managed Instance Groups to be able to create instances from your images.
+data "google_compute_default_service_account" "default" {
+  project = local.project_id
+}
+
+resource "google_project_iam_member" "compute_sa_image_user" {
+  project    = local.project_id
+  role       = "roles/compute.imageUser"
+  member     = "serviceAccount:${data.google_compute_default_service_account.default.email}"
+  depends_on = [google_project_service.enabled_apis]
+}
+
+# Grant Editor role to a specific user
+resource "google_project_iam_member" "editor_for_lucace" {
+  project = local.project_id
+  role    = "roles/editor"
+  member  = "user:lucace@mnoseda.altostrat.com"
+}
+
+# Grant Browser role to a specific user on the organization
+resource "google_organization_iam_member" "browser_for_lucace_on_org" {
+  org_id = "806931298675"
+  role   = "roles/browser"
+  member = "user:lucace@mnoseda.altostrat.com"
+}
+
+
+# -----------------------------------------------------------------------------
+# 6. GitHub Connection and Cloud Build Trigger
+# -----------------------------------------------------------------------------
+
+# Create a connection to GitHub
+# Create a trigger that fires on commits to the main branch
+resource "google_cloudbuild_trigger" "github_trigger" {
+  project         = local.project_id
+  location        = local.region
+  name            = "packer-image-builder-on-main-commit"
+  description     = "Triggers build on commit to main branch of ${local.github_repo}"
+  service_account = google_service_account.packer_builder_sa.id
+
+  # ADDED: Only trigger for changes in the 'customimage' folder.
+  included_files = ["customimage/**"]
+  filename       = "customimage/cloudbuild.yaml" // Assumes cloudbuild.yaml is in the root of the repo
+
+  # REVERTED: Use 1st generation github block for a simpler connection.
+  # This requires authorizing the Cloud Build GitHub App in your repository settings.
+  github {
+    owner = local.github_owner
+    name  = local.github_repo
+    push {
+      branch = "^main$" // Regex for an exact match on the 'main' branch
+    }
+  }
+
+  substitutions = {
+    _GCP_PROJECT = local.project_id
+    _IMAGE_NAME  = local.debian_ops_agent_image_name
+  }
+
+  depends_on = [
+    google_project_iam_member.packer_builder_sa_roles,
+    google_cloudbuild_worker_pool.packer_private_pool
+  ]
+}
+
+# ADDED: A new trigger for the MySQL image build.
+resource "google_cloudbuild_trigger" "mysql_node_trigger" {
+  project         = local.project_id
+  location        = local.region
+  name            = "packer-mysql-image-builder-on-commit"
+  description     = "Triggers build on commit to mysqlnode folder"
+  service_account = google_service_account.packer_builder_sa.id
+
+  # Only trigger for changes in the 'mysqlnode' folder.
+  included_files = ["mysqlnode/**"]
+  filename       = "mysqlnode/cloudbuild.yaml"
+
+  github {
+    owner = local.github_owner
+    name  = local.github_repo
+    push {
+      branch = "^main$" // Regex for an exact match on the 'main' branch
+    }
+  }
+
+  substitutions = {
+    _GCP_PROJECT = local.project_id
+    _IMAGE_NAME  = local.mysql_node_image_name
+  }
+
+  depends_on = [
+    google_project_iam_member.packer_builder_sa_roles,
+    google_cloudbuild_worker_pool.packer_private_pool
+  ]
+}
+
+# ADDED: A new trigger for the Petshop Database image build.
+resource "google_cloudbuild_trigger" "petshop_database_node_trigger" {
+  project         = local.project_id
+  location        = local.region
+  name            = "packer-petshop-database-image-builder-on-commit"
+  description     = "Triggers build on commit to petshopdatabasenode folder"
+  service_account = google_service_account.packer_builder_sa.id
+
+  # Only trigger for changes in the 'petshopdatabasenode' folder.
+  included_files = ["petshopdatabasenode/**"]
+  filename       = "petshopdatabasenode/cloudbuild.yaml"
+
+  github {
+    owner = local.github_owner
+    name  = local.github_repo
+    push {
+      branch = "^main$" // Regex for an exact match on the 'main' branch
+    }
+  }
+
+  substitutions = {
+    _GCP_PROJECT = local.project_id
+    _IMAGE_NAME  = local.petshop_database_node_image_name
+  }
+
+  depends_on = [
+    google_project_iam_member.packer_builder_sa_roles,
+    google_cloudbuild_worker_pool.packer_private_pool
+  ]
+}
+
+# -----------------------------------------------------------------------------
+# 7. Secure Source Manager
+# -----------------------------------------------------------------------------
+
+# Create a Secure Source Manager instance
+resource "google_secure_source_manager_instance" "sample_repos_instance" {
+  provider    = google-beta
+  instance_id = "sample-repos-instance"
+  location    = local.region
+  project     = local.project_id
+  depends_on  = [google_project_service.enabled_apis]
+}
+
+# Create a repository within the Secure Source Manager instance
+resource "google_secure_source_manager_repository" "test_trigger_repo" {
+  provider      = google-beta
+  instance      = google_secure_source_manager_instance.sample_repos_instance.name
+  repository_id = "test-trigger"
+  project       = local.project_id
+  location      = local.region
+}
+
+# ADDED: A new trigger for the Pet Shop application image build.
+resource "google_cloudbuild_trigger" "petshop_node_trigger" {
+  project         = local.project_id
+  location        = local.region
+  name            = "packer-petshop-image-builder-on-commit"
+  description     = "Triggers build on commit to petshopnode folder"
+  service_account = google_service_account.packer_builder_sa.id
+
+  # MODIFIED: Trigger for changes in the 'petshopnode' OR 'website' folders.
+  included_files = ["petshopnode/**", "website/**"]
+  filename       = "petshopnode/cloudbuild.yaml"
+
+  github {
+    owner = local.github_owner
+    name  = local.github_repo
+    push {
+      branch = "^main$" // Regex for an exact match on the 'main' branch
+    }
+  }
+
+  substitutions = {
+    _GCP_PROJECT = local.project_id
+    _IMAGE_NAME  = local.petshop_node_image_name
+  }
+
+  depends_on = [
+    google_project_iam_member.packer_builder_sa_roles,
+    google_cloudbuild_worker_pool.packer_private_pool
+  ]
+}
+
+
+# ADDED: A new trigger for the Apache image build.
+resource "google_cloudbuild_trigger" "apache_node_trigger" {
+  project         = local.project_id
+  location        = local.region
+  name            = "packer-apache-image-builder-on-commit"
+  description     = "Triggers build on commit to apachenode folder"
+  service_account = google_service_account.packer_builder_sa.id
+
+  # Only trigger for changes in the 'apachenode' folder.
+  included_files = ["apachenode/**"]
+  filename       = "apachenode/cloudbuild.yaml"
+
+  github {
+    owner = local.github_owner
+    name  = local.github_repo
+    push {
+      branch = "^main$" // Regex for an exact match on the 'main' branch
+    }
+  }
+
+  substitutions = {
+    _GCP_PROJECT = local.project_id
+    _IMAGE_NAME  = local.apache_node_image_name
+  }
+
+  depends_on = [
+    google_project_iam_member.packer_builder_sa_roles,
+    google_cloudbuild_worker_pool.packer_private_pool
+  ]
+}
+
+# ADDED: A new trigger for applying Terraform configuration.
+resource "google_cloudbuild_trigger" "terraform_apply_trigger" {
+  project         = local.project_id
+  location        = local.region
+  name            = "terraform-apply-on-commit"
+  description     = "Triggers Terraform apply on commit to petshopdeploy folder"
+  service_account = google_service_account.packer_builder_sa.id # For simplicity, reusing the packer SA.
+
+  # Only trigger for changes in the 'petshopdeploy' folder.
+  included_files = ["petshopdeploy/**/*.tf"]
+  filename       = "petshopdeploy/cloudbuild.yaml"
+
+  github {
+    owner = local.github_owner
+    name  = local.github_repo
+    push {
+      branch = "^main$" # Regex for an exact match on the 'main' branch
+    }
+  }
+
+  # No substitutions needed as the Terraform config is self-contained.
+
+  depends_on = [
+    google_project_iam_member.packer_builder_sa_roles,
+    google_cloudbuild_worker_pool.packer_private_pool
+  ]
+}
