@@ -162,8 +162,10 @@ resource "google_compute_instance_template" "petshop_template" {
   # FIXED: Assign the dedicated service account with the full cloud-platform scope URI.
   service_account {
     email = google_service_account.petshop_sa.email
-    # Using the full URI ensures the instance can generate tokens to call Secret Manager API.
-    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+    scopes = [
+      "https://www.googleapis.com/auth/cloud-platform", # Broad access
+      "https://www.googleapis.com/auth/secretmanager"   # Specific access for Secret Manager
+    ]
   }
 
   # Enable Shielded VM to comply with organization policy.
@@ -197,8 +199,10 @@ resource "google_compute_instance" "petshop_db_instance" {
   # FIXED: Assign the dedicated service account with the full cloud-platform scope URI.
   service_account {
     email = google_service_account.petshop_db_sa.email
-    # Using the full URI for best practice and consistency.
-    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+    scopes = [
+      "https://www.googleapis.com/auth/cloud-platform", # Broad access
+      "https://www.googleapis.com/auth/secretmanager"   # Specific access for Secret Manager
+    ]
   }
 
   # Configure networking

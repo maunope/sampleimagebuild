@@ -69,6 +69,19 @@ resource "google_compute_firewall" "allow_http" {
   target_tags   = [local.http_tag]
 }
 
+# ADDED: Create a firewall rule to allow SSH traffic from all hosts.
+# Warning: Exposing SSH to the public internet (0.0.0.0/0) is a security risk.
+# It is recommended to restrict the source_ranges to known IP addresses.
+resource "google_compute_firewall" "allow_ssh" {
+  name    = "${local.vpc_name}-allow-ssh"
+  network = google_compute_network.petshop_vpc.name
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+  source_ranges = ["0.0.0.0/0"]
+}
+
 # ADDED: Create a firewall rule to allow internal MySQL traffic
 resource "google_compute_firewall" "allow_mysql_internal" {
   name    = "${local.vpc_name}-allow-mysql-internal"
