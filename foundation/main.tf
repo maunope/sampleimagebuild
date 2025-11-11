@@ -22,6 +22,11 @@ provider "google" {
   region  = local.region
 }
 
+data "google_project" "project" {
+  project_id = local.project_id
+}
+
+
 locals {
   project_id    = "mnosedademo"
   region        = "europe-west4"
@@ -118,4 +123,16 @@ resource "google_dns_managed_zone" "petshop_private_zone" {
       network_url = google_compute_network.petshop_vpc.id
     }
   }
+}
+
+# -----------------------------------------------------------------------------
+# 4. IAM for CI/CD
+# -----------------------------------------------------------------------------
+
+# ADDED: Grant the default Cloud Build service account the necessary role to manage instance templates and MIGs.
+# This is required for the petshopnode CI/CD pipeline to deploy new versions.
+resource "google_project_iam_member" "cloudbuild_compute_admin" {
+  project = local.project_id
+  role    = "roles/compute.instanceAdmin.v1"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 }
