@@ -162,9 +162,13 @@ resource "google_compute_instance_template" "petshop_template" {
   # FIXED: Assign the dedicated service account with the full cloud-platform scope URI.
   service_account {
     email = google_service_account.petshop_sa.email
+    # CORRECTED: Added the full set of default scopes in addition to cloud-platform to ensure all APIs are accessible.
+    # While cloud-platform should be sufficient, this provides a more robust set of permissions.
     scopes = [
-      "https://www.googleapis.com/auth/cloud-platform", # Broad access
-      "https://www.googleapis.com/auth/secretmanager"   # Specific access for Secret Manager
+      "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/compute",
+      "https://www.googleapis.com/auth/devstorage.full_control",
     ]
   }
 
@@ -200,8 +204,10 @@ resource "google_compute_instance" "petshop_db_instance" {
   service_account {
     email = google_service_account.petshop_db_sa.email
     scopes = [
-      "https://www.googleapis.com/auth/cloud-platform", # Broad access
-      "https://www.googleapis.com/auth/secretmanager"   # Specific access for Secret Manager
+      "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/compute",
+      "https://www.googleapis.com/auth/devstorage.full_control",
     ]
   }
 
@@ -217,10 +223,9 @@ resource "google_compute_instance" "petshop_db_instance" {
 
   tags = [data.terraform_remote_state.foundation.outputs.db_tag]
 
-  # ADDED: Lifecycle rule to ensure the new instance is created before the old one is destroyed.
-  # This minimizes downtime during an image update.
+  # FIXED: Removed create_before_destroy for fixed-name instance to avoid "already exists" error.
+  # This will cause brief downtime during database instance updates.
   lifecycle {
-    create_before_destroy = true
   }
 }
 
