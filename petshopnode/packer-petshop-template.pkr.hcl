@@ -74,7 +74,7 @@ build {
       "composer install --no-dev --optimize-autoloader", # Install PHP dependencies
       "sudo chown -R www-data:www-data /var/www/html",
       "sudo systemctl restart apache2", # Restart Apache after file changes and composer install
-      "echo 'Website deployment complete.'"
+      "echo 'Website deployment complete!'"
     ]
   }
 }
