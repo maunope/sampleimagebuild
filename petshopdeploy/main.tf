@@ -1,3 +1,4 @@
+
 # Terraform configuration to deploy the Pet Shop application
 
 # -----------------------------------------------------------------------------
@@ -22,6 +23,7 @@ provider "google" {
   region  = local.region
 }
 
+//todo move this to a shared locals.tf
 locals {
   project_id    = "mnosedademo"
   region        = "europe-west4"
@@ -33,102 +35,7 @@ locals {
   db_tag        = "allow-mysql"
 }
 
-# -----------------------------------------------------------------------------
-# 2. Networking (VPC and Firewall)
-# -----------------------------------------------------------------------------
 
-# Create a custom VPC for the application
-resource "google_compute_network" "petshop_vpc" {
-  name                    = local.vpc_name
-  auto_create_subnetworks = false
-}
-
-# Create a subnet in the specified region
-resource "google_compute_subnetwork" "petshop_subnet" {
-  name          = "petshop-subnet-${local.region}"
-  ip_cidr_range = "10.20.0.0/24"
-  region        = local.region
-  network       = google_compute_network.petshop_vpc.id
-}
-
-# Create a firewall rule to allow HTTP traffic to tagged instances
-resource "google_compute_firewall" "allow_http" {
-  name    = "${local.vpc_name}-allow-http"
-  network = google_compute_network.petshop_vpc.name
-  allow {
-    protocol = "tcp"
-    ports    = ["80"]
-  }
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = [local.http_tag]
-}
-
-
-
-# ADDED: Create a firewall rule to allow internal MySQL traffic
-resource "google_compute_firewall" "allow_mysql_internal" {
-  name    = "${local.vpc_name}-allow-mysql-internal"
-  network = google_compute_network.petshop_vpc.name
-  allow {
-    protocol = "tcp"
-    ports    = ["3306"]
-  }
-  # Only allow traffic from within the same subnet
-  source_ranges = [google_compute_subnetwork.petshop_subnet.ip_cidr_range]
-  # Apply this rule only to instances with the 'allow-mysql' tag
-  target_tags = [local.db_tag]
-}
-
-# ADDED: Create a router for the NAT gateway
-resource "google_compute_router" "petshop_router" {
-  name    = "petshop-router"
-  region  = google_compute_subnetwork.petshop_subnet.region
-  network = google_compute_network.petshop_vpc.id
-}
-
-# ADDED: Create the Cloud NAT gateway to allow egress traffic from the instances
-resource "google_compute_router_nat" "petshop_nat" {
-  name                               = "petshop-nat-gateway"
-  router                             = google_compute_router.petshop_router.name
-  region                             = google_compute_router.petshop_router.region
-  nat_ip_allocate_option             = "AUTO_ONLY"
-  source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
-  subnetwork {
-    name                    = google_compute_subnetwork.petshop_subnet.id
-    source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
-  }
-  log_config {
-    enable = true
-    filter = "ERRORS_ONLY"
-  }
-}
-
-# -----------------------------------------------------------------------------
-# 3. Cloud DNS Private Zone
-# -----------------------------------------------------------------------------
-
-# ADDED: Create a private DNS zone for service discovery
-resource "google_dns_managed_zone" "petshop_private_zone" {
-  name        = local.dns_zone_name
-  dns_name    = local.dns_name
-  description = "Private DNS zone for the Petshop application"
-  visibility  = "private"
-
-  private_visibility_config {
-    networks {
-      network_url = google_compute_network.petshop_vpc.id
-    }
-  }
-}
-
-# ADDED: Create a DNS A record for the database instance
-resource "google_dns_record_set" "db_dns_record" {
-  name         = "${local.db_name}.${google_dns_managed_zone.petshop_private_zone.dns_name}"
-  managed_zone = google_dns_managed_zone.petshop_private_zone.name
-  type         = "A"
-  ttl          = 300
-  rrdatas      = [google_compute_instance.petshop_db_instance.network_interface[0].network_ip]
-}
 
 # -----------------------------------------------------------------------------
 # Logging Configuration
@@ -147,19 +54,6 @@ resource "google_logging_project_sink" "default_sink_exclusion" {
     description = "Exclude logs from Google Cloud health checks to reduce noise."
     filter      = "httpRequest.userAgent=\"GoogleHC/1.0\""
   }
-}
-
-# ADDED: Data source to get the latest image from the petshop database family.
-# This will be used to trigger an update when a new image is available.
-data "google_compute_image" "latest_petshop_db_image" {
-  family  = "petshopdatabasenode-family"
-  project = local.project_id
-}
-
-# ADDED: Data source to get the latest image from the petshop node family.
-data "google_compute_image" "latest_petshop_node_image" {
-  family  = "petshopnode-family" # Corrected to use the final application image family
-  project = local.project_id
 }
 
 # -----------------------------------------------------------------------------
@@ -235,6 +129,14 @@ resource "google_project_iam_member" "petshop_db_sa_minimal_roles" {
   member  = google_service_account.petshop_db_sa.member
 }
 
+# ADDED: Create a DNS A record for the database instance
+resource "google_dns_record_set" "db_dns_record" {
+  name         = "${local.db_name}.${data.terraform_remote_state.foundation.outputs.dns_name}"
+  managed_zone = data.terraform_remote_state.foundation.outputs.dns_zone_name
+  type         = "A"
+  ttl          = 300
+  rrdatas      = [google_compute_instance.petshop_db_instance.network_interface[0].network_ip]
+}
 
 # -----------------------------------------------------------------------------
 # 3. Instance Template and Managed Instance Group (MIG)
@@ -254,7 +156,7 @@ resource "google_compute_instance_template" "petshop_template" {
 
   # Configure networking
   network_interface {
-    subnetwork = google_compute_subnetwork.petshop_subnet.id
+    subnetwork = data.terraform_remote_state.foundation.outputs.subnet_id
     # No access_config block to prevent assigning external IPs, complying with org policy.
   }
 
@@ -271,7 +173,7 @@ resource "google_compute_instance_template" "petshop_template" {
   }
 
   # Apply the firewall tag
-  tags = [local.http_tag]
+  tags = [data.terraform_remote_state.foundation.outputs.http_tag]
 
   # Lifecycle rule to ensure the new instance template is created before the old one is destroyed.
   lifecycle {
@@ -302,7 +204,7 @@ resource "google_compute_instance" "petshop_db_instance" {
 
   # Configure networking
   network_interface {
-    subnetwork = google_compute_subnetwork.petshop_subnet.id
+    subnetwork = data.terraform_remote_state.foundation.outputs.subnet_id
     # No access_config to keep the instance internal
   }
 
@@ -310,7 +212,7 @@ resource "google_compute_instance" "petshop_db_instance" {
     enable_secure_boot = true
   }
 
-  tags = [local.db_tag]
+  tags = [data.terraform_remote_state.foundation.outputs.db_tag]
 
   # ADDED: Lifecycle rule to ensure the new instance is created before the old one is destroyed.
   # This minimizes downtime during an image update.
