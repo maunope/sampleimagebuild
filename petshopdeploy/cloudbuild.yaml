@@ -25,7 +25,12 @@ steps:
   - id: 'Terraform Plan'
     name: 'hashicorp/terraform:1.8.5'
     entrypoint: 'terraform'
-    args: ['plan', '-out=tfplan']
+    args:
+      - 'plan'
+      - '-out=tfplan'
+      - '-var=project_id=${_PROJECT_ID}'
+      - '-var=region=${_REGION}'
+      - '-var=db_username=${_DB_USERNAME}'
     dir: 'petshopdeploy' # ADDED: Specify the directory where the .tf files are located.
     waitFor: ['Terraform Init']
 
@@ -34,6 +39,8 @@ steps:
   - id: 'Terraform Apply'
     name: 'hashicorp/terraform:1.8.5'
     entrypoint: 'terraform'
+    # The plan file 'tfplan' already contains the variable values from the plan step,
+    # so we don't need to pass them again.
     args: ['apply', '-auto-approve', 'tfplan']
     dir: 'petshopdeploy' # ADDED: Specify the directory where the .tf files are located.
     waitFor: ['Terraform Plan']

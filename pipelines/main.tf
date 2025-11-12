@@ -59,6 +59,9 @@ resource "google_project_service" "enabled_apis" {
     "iam.googleapis.com",
     "securesourcemanager.googleapis.com",
     "servicenetworking.googleapis.com", # Required for VPC peering for the private pool
+    # ADDED: APIs required for the petshopdeploy stage
+    "logging.googleapis.com",
+    "secretmanager.googleapis.com",
   ])
   project            = var.project_id
   service            = each.key
@@ -215,7 +218,8 @@ resource "google_project_iam_member" "packer_builder_sa_roles" {
     "roles/logging.logWriter", # Logs Writer
     "roles/secretmanager.admin",
     "roles/secretmanager.secretAccessor", # Secret Manager Secret Accessor
-    "roles/resourcemanager.projectIamAdmin",
+    # ADDED: Role required for the petshopdeploy stage to create other service accounts
+    "roles/iam.serviceAccountAdmin",
     # Add Editor role on top to ensure all permissions
     "roles/editor"
   ])
@@ -457,7 +461,14 @@ resource "google_cloudbuild_trigger" "terraform_apply_trigger" {
     }
   }
 
-  # No substitutions needed as the Terraform config is self-contained.
+  # ADDED: Pass variables to the Terraform deployment via substitutions.
+  # These values will be available inside the cloudbuild.yaml and are used
+  # to configure the deployment for a specific environment.
+  substitutions = {
+    _PROJECT_ID  = "mnosedademo"
+    _REGION      = "europe-west4"
+    _DB_USERNAME = "petshopuser"
+  }
 
   depends_on = [
     google_project_iam_member.packer_builder_sa_roles,
