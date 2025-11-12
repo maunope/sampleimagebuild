@@ -475,3 +475,31 @@ resource "google_cloudbuild_trigger" "terraform_apply_trigger" {
     google_cloudbuild_worker_pool.packer_private_pool
   ]
 }
+
+# ADDED: A new trigger for applying the Foundation Terraform configuration.
+resource "google_cloudbuild_trigger" "terraform_apply_foundation_trigger" {
+  project         = var.project_id
+  location        = var.region
+  name            = "terraform-apply-foundation-on-commit"
+  description     = "Triggers Terraform apply on commit to foundation folder"
+  service_account = google_service_account.packer_builder_sa.id
+
+  # Only trigger for changes in the 'foundation' folder.
+  included_files = ["foundation/**/*.tf"]
+  filename       = "foundation/cloudbuild.yaml"
+
+  github {
+    owner = local.github_owner
+    name  = local.github_repo
+    push {
+      branch = "^main$"
+    }
+  }
+
+  substitutions = {
+    _PROJECT_ID = "mnosedademo"
+    _REGION     = "europe-west4"
+  }
+
+  depends_on = [google_project_iam_member.packer_builder_sa_roles]
+}

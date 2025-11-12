@@ -1,0 +1,44 @@
+steps:
+  # Step 1: Create a GCS bucket for the Terraform state if it doesn't exist.
+  - id: 'Create GCS Backend Bucket'
+    name: 'gcr.io/cloud-builders/gsutil'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Use a unique bucket for foundation state to keep it separate.
+        gsutil mb -p ${PROJECT_ID} -l europe-west4 gs://${PROJECT_ID}-tf-state-foundation || true
+
+  # Step 2: Initialize Terraform
+  - id: 'Terraform Init'
+    name: 'hashicorp/terraform:1.8.5'
+    entrypoint: 'terraform'
+    args:
+      - 'init'
+      # Configure the backend to use the dedicated foundation state bucket.
+      - '-backend-config=bucket=${PROJECT_ID}-tf-state-foundation'
+    dir: 'foundation'
+    waitFor: ['Create GCS Backend Bucket']
+
+  # Step 3: Terraform Plan
+  - id: 'Terraform Plan'
+    name: 'hashicorp/terraform:1.8.5'
+    entrypoint: 'terraform'
+    args:
+      - 'plan'
+      - '-out=tfplan'
+      - '-var=project_id=${_PROJECT_ID}'
+      - '-var=region=${_REGION}'
+    dir: 'foundation'
+    waitFor: ['Terraform Init']
+
+  # Step 4: Terraform Apply
+  - id: 'Terraform Apply'
+    name: 'hashicorp/terraform:1.8.5'
+    entrypoint: 'terraform'
+    args: ['apply', '-auto-approve', 'tfplan']
+    dir: 'foundation'
+    waitFor: ['Terraform Plan']
+
+options:
+  logging: CLOUD_LOGGING_ONLY
