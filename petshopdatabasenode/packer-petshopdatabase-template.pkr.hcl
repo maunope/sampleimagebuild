@@ -52,11 +52,7 @@ build {
   # 2. Creates and enables a systemd service that will run on first boot to securely configure users.
   provisioner "shell" {
     inline = [
-      "echo 'Updating packages and installing dependencies...'",
-      "sudo apt-get update -y",
-      "# CRITICAL FIX: Install jq, which is required by the boot script to parse secrets.",
-      "sudo apt-get install -y jq",
-
+      
       "echo 'Waiting for MySQL to become ready...'",
       "sleep 15",
 
@@ -84,6 +80,8 @@ build {
       "CREATE USER '$${DB_USERNAME}'@'%' IDENTIFIED  BY '$${DB_PASSWORD}';",
       "GRANT ALL PRIVILEGES ON *.* TO '$${DB_USERNAME}'@'%' WITH GRANT OPTION;",
       "ALTER USER 'root'@'localhost' IDENTIFIED BY '$${ROOT_PASSWORD}';",
+      "# CRITICAL FIX: Explicitly drop any remote root user that may exist from previous bad builds.",
+      "DROP USER IF EXISTS 'root'@'%';",
       "FLUSH PRIVILEGES;",
       "MYSQL_SCRIPT",
       "echo 'MySQL users configured successfully.'",
