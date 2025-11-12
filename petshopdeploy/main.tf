@@ -52,20 +52,6 @@ locals {
   db_tag        = "allow-mysql"
 }
 
-# ADDED: Data source to read the outputs from the 'foundation' Terraform state.
-# This allows the deployment layer to use resources created by the foundation layer,
-# such as the VPC, subnets, and firewall tags.
-data "terraform_remote_state" "foundation" {
-  backend = "gcs"
-  config = {
-    # The bucket name must match the one configured in the foundation/cloudbuild.yaml
-    bucket = "${var.project_id}-tf-state-foundation"
-    prefix = "petshop-foundation"
-  }
-}
-
-
-
 # -----------------------------------------------------------------------------
 # Logging Configuration
 # -----------------------------------------------------------------------------
