@@ -81,7 +81,7 @@ build {
       "while ! mysqladmin ping --silent; do echo 'Waiting for MySQL...'; sleep 2; done",
       "# CORRECTED: Use a 'here document' to safely pass variables with special characters to MySQL.",
       "mysql -u root <<-MYSQL_SCRIPT", # This heredoc allows shell variable expansion
-      "CREATE USER '$${DB_USERNAME}'@'%' IDENTIFIED WITH mysql_native_password BY '$${DB_PASSWORD}';",
+      "CREATE USER '$${DB_USERNAME}'@'%' IDENTIFIED  BY '$${DB_PASSWORD}';",
       "GRANT ALL PRIVILEGES ON *.* TO '$${DB_USERNAME}'@'%' WITH GRANT OPTION;",
       "ALTER USER 'root'@'localhost' IDENTIFIED BY '$${ROOT_PASSWORD}';",
       "FLUSH PRIVILEGES;",
