@@ -220,6 +220,8 @@ resource "google_project_iam_member" "packer_builder_sa_roles" {
     "roles/secretmanager.secretAccessor", # Secret Manager Secret Accessor
     # ADDED: Role required for the petshopdeploy stage to create other service accounts
     "roles/iam.serviceAccountAdmin",
+    # ADDED: Role required to grant IAM permissions at the project level (for foundation).
+    "roles/resourcemanager.projectIamAdmin",
     # Add Editor role on top to ensure all permissions
     "roles/editor"
   ])
