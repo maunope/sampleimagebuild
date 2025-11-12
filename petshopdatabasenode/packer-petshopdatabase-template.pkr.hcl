@@ -80,6 +80,12 @@ build {
       "CREATE USER '\\${DB_USERNAME}'@'%' IDENTIFIED BY '\\${DB_PASSWORD}';",
       "GRANT ALL PRIVILEGES ON *.* TO '\\${DB_USERNAME}'@'%' WITH GRANT OPTION;",
       "ALTER USER 'root'@'localhost' IDENTIFIED BY '\\${ROOT_PASSWORD}';",
+      "CREATE USER '\\${DB_USERNAME}'@'%' IDENTIFIED BY '\\${DB_PASSWORD}';",
+      "GRANT ALL PRIVILEGES ON *.* TO '\\${DB_USERNAME}'@'%' WITH GRANT OPTION;",
+      "ALTER USER 'root'@'localhost' IDENTIFIED BY '\\${ROOT_PASSWORD}';",
+      "FLUSH PRIVILEGES;",
+
+
       "FLUSH PRIVILEGES;",
       "MYSQL_SCRIPT",
       "echo 'MySQL users configured successfully.'",
@@ -106,4 +112,4 @@ build {
       "echo 'Service enabled. It will run on next boot.'"
     ]
   }
-}
+} 
