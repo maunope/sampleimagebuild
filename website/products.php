@@ -130,10 +130,14 @@ use Google\Cloud\SecretManager\V1\SecretManagerServiceClient;
                     if ($credentials === null) {
                         // Create the Secret Manager client
                         $client = new SecretManagerServiceClient();
-
-                        // The name of the secret to access (using the provided project ID)
-                        $secretName = 'projects/553798289281/secrets/petshop-db-credentials';
-
+                        
+                        // Get the project ID from the metadata server
+                        $projectId = file_get_contents('http://metadata.google.internal/computeMetadata/v1/project/project-id', false, stream_context_create([
+                            'http' => ['header' => 'Metadata-Flavor: Google']
+                        ]));
+                        
+                        // The name of the secret to access
+                        $secretName = 'projects/' . $projectId . '/secrets/petshop-db-credentials';
                         try {
                             // Access the secret version
                             $response = $client->accessSecretVersion($secretName . '/versions/latest');
@@ -157,15 +161,15 @@ use Google\Cloud\SecretManager\V1\SecretManagerServiceClient;
                     return $credentials;
                 }
 
-                $dbCredentials = getDbCredentials();
+                $dbcredentials = getDbCredentials();
                 $servername = "petshop-db.petshop.internal"; // Still use the internal DNS name
                 $dbname = "petshop"; // Database name
 
-                if ($dbCredentials === false || !isset($dbCredentials['username']) || !isset($dbCredentials['password'])) {
+                if ($dbcredentials === false || !isset($dbcredentials['username']) || !isset($dbcredentials['password'])) {
                     echo "<li>Database connection failed. Please try again later.</li>";
                 } else {
                     // Create connection
-                    $conn = new mysqli($servername, $dbCredentials['username'], $dbCredentials['password'], $dbname);
+                    $conn = new mysqli($servername, $dbcredentials['username'], $dbcredentials['password'], $dbname);
 
                     // Check connection
                     if ($conn->connect_error) {

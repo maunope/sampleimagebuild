@@ -91,6 +91,11 @@ resource "random_password" "db_password" {
   length           = 20
   special          = true
   override_special = "!#$%&*()-_=+[]{}<>:?"
+
+  keepers = {
+    # Generate a new password only when the secret resource itself is replaced.
+    secret_id = google_secret_manager_secret.db_credentials.id
+  }
 }
 
 # ADDED: Add a version to the secret with the database credentials
@@ -118,6 +123,11 @@ resource "random_password" "db_root_password" {
   length           = 20
   special          = true
   override_special = "!#$%&*()-_=+[]{}<>:?"
+
+  keepers = {
+    # Generate a new password only when the secret resource itself is replaced.
+    secret_id = google_secret_manager_secret.db_root_credentials.id
+  }
 }
 
 # ADDED: Add a version to the root secret with the username 'root' and the random password.
