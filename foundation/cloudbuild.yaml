@@ -7,7 +7,7 @@ steps:
       - '-c'
       - |
         # Use the existing, single state bucket. The '|| true' prevents errors if it already exists.
-        gsutil mb -p ${PROJECT_ID} -l europe-west4 gs://${PROJECT_ID}-tf-state || true
+        gsutil mb -p ${PROJECT_ID} -l ${_REGION} gs://${PROJECT_ID}-tf-state || true
 
   # Step 2: Initialize Terraform
   - id: 'Terraform Init'

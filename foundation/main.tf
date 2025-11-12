@@ -48,6 +48,17 @@ locals {
   db_tag        = "allow-mysql"
 }
 
+# ADDED: Enable required APIs for the foundation layer.
+resource "google_project_service" "foundation_apis" {
+  for_each = toset([
+    "compute.googleapis.com", # For VPC, Firewall, etc.
+    "dns.googleapis.com",     # Required for Cloud DNS.
+  ])
+  project            = var.project_id
+  service            = each.key
+  disable_on_destroy = false
+}
+
 
 # -----------------------------------------------------------------------------
 # 2. Networking (VPC and Firewall)
@@ -146,6 +157,8 @@ resource "google_dns_managed_zone" "petshop_private_zone" {
       network_url = google_compute_network.petshop_vpc.id
     }
   }
+
+  depends_on = [google_project_service.foundation_apis]
 }
 
 # -----------------------------------------------------------------------------
@@ -159,5 +172,3 @@ resource "google_project_iam_member" "cloudbuild_compute_admin" {
   role    = "roles/compute.instanceAdmin.v1"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 }
-
-

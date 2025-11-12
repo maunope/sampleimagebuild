@@ -9,3 +9,4 @@ do.sh
 *.tfvars.json
 .DS_Store
 .DS_Store
+pipelinestemp/main.tf

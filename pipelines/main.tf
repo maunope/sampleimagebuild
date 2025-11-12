@@ -57,13 +57,20 @@ locals {
 # -----------------------------------------------------------------------------
 # 2. API and Service Enablement
 # -----------------------------------------------------------------------------
+
+# Pre-enable the Compute Engine API before anything else to ensure dependent resources can be created.
+resource "google_project_service" "compute_api" {
+  project            = var.project_id
+  service            = "compute.googleapis.com"
+  disable_on_destroy = false
+}
+
 resource "google_project_service" "enabled_apis" {
   for_each = toset([
     "cloudbuild.googleapis.com",
     "compute.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
-    "securesourcemanager.googleapis.com",
     "servicenetworking.googleapis.com", # Required for VPC peering for the private pool
     # ADDED: APIs required for the petshopdeploy stage
     "logging.googleapis.com",
@@ -72,6 +79,8 @@ resource "google_project_service" "enabled_apis" {
   project            = var.project_id
   service            = each.key
   disable_on_destroy = false
+
+  depends_on = [google_project_service.compute_api]
 }
 
 # -----------------------------------------------------------------------------
@@ -83,7 +92,10 @@ resource "google_compute_network" "build_vpc" {
   project                 = var.project_id
   name                    = "packer-build-vpc"
   auto_create_subnetworks = false
-  depends_on              = [google_project_service.enabled_apis]
+  # Explicitly depend on the Compute API being enabled.
+  depends_on = [
+    google_project_service.compute_api
+  ]
 }
 
 # Create a subnet in the specified region
@@ -369,28 +381,6 @@ resource "google_cloudbuild_trigger" "petshop_database_node_trigger" {
     google_project_iam_member.packer_builder_sa_roles,
     google_cloudbuild_worker_pool.packer_private_pool
   ]
-}
-
-# -----------------------------------------------------------------------------
-# 7. Secure Source Manager
-# -----------------------------------------------------------------------------
-
-# Create a Secure Source Manager instance
-resource "google_secure_source_manager_instance" "sample_repos_instance" {
-  provider    = google-beta
-  instance_id = "sample-repos-instance"
-  location    = var.region
-  project     = var.project_id
-  depends_on  = [google_project_service.enabled_apis]
-}
-
-# Create a repository within the Secure Source Manager instance
-resource "google_secure_source_manager_repository" "test_trigger_repo" {
-  provider      = google-beta
-  instance      = google_secure_source_manager_instance.sample_repos_instance.name
-  repository_id = "test-trigger"
-  project       = var.project_id
-  location      = var.region
 }
 
 # ADDED: A new trigger for the Pet Shop application image build.

@@ -255,6 +255,8 @@ resource "google_compute_instance_template" "petshop_template" {
     ]
   }
 
+
+
   # Enable Shielded VM to comply with organization policy.
   shielded_instance_config {
     enable_secure_boot = true
