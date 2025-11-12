@@ -6,8 +6,8 @@ steps:
     args:
       - '-c'
       - |
-        # Use a unique bucket for foundation state to keep it separate.
-        gsutil mb -p ${PROJECT_ID} -l europe-west4 gs://${PROJECT_ID}-tf-state-foundation || true
+        # Use the existing, single state bucket. The '|| true' prevents errors if it already exists.
+        gsutil mb -p ${PROJECT_ID} -l europe-west4 gs://${PROJECT_ID}-tf-state || true
 
   # Step 2: Initialize Terraform
   - id: 'Terraform Init'
@@ -15,8 +15,8 @@ steps:
     entrypoint: 'terraform'
     args:
       - 'init'
-      # Configure the backend to use the dedicated foundation state bucket.
-      - '-backend-config=bucket=${PROJECT_ID}-tf-state-foundation'
+      # CORRECTED: Configure the backend to use the single, correct state bucket.
+      - '-backend-config=bucket=${PROJECT_ID}-tf-state'
     dir: 'foundation'
     waitFor: ['Create GCS Backend Bucket']
 

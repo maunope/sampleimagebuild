@@ -2,8 +2,8 @@
 data "terraform_remote_state" "foundation" {
   backend = "gcs"
   config = {
-    # CORRECTED: The bucket name must be dynamic to match the one created by the foundation pipeline.
-    bucket = "${var.project_id}-tf-state-foundation"
+    # CORRECTED: The bucket name must point to the single, correct state bucket.
+    bucket = "${var.project_id}-tf-state"
     prefix = "petshop-foundation" # The path to the foundation state file
   }
 }
