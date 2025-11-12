@@ -480,6 +480,12 @@ resource "google_cloudbuild_trigger" "terraform_apply_trigger" {
     _DB_USERNAME = var.db_username
   }
 
+  # ADDED: Require manual approval before this trigger can execute.
+  # This is a critical safety measure for application infrastructure.
+  approval_config {
+    approval_required = true
+  }
+
   depends_on = [
     google_project_iam_member.packer_builder_sa_roles,
     google_cloudbuild_worker_pool.packer_private_pool
