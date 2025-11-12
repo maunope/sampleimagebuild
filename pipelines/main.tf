@@ -537,6 +537,8 @@ resource "google_cloudbuild_trigger" "terraform_destroy_foundation_trigger" {
     owner = local.github_owner
     name  = local.github_repo
     push {
+      # A branch or tag is required, even with invert_regex.
+      branch       = "^$" # An empty branch name that will never match.
       invert_regex = true
     }
   }
@@ -570,6 +572,8 @@ resource "google_cloudbuild_trigger" "terraform_destroy_deploy_trigger" {
     owner = local.github_owner
     name  = local.github_repo
     push {
+      # A branch or tag is required, even with invert_regex.
+      branch       = "^$" # An empty branch name that will never match.
       invert_regex = true
     }
   }

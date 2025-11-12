@@ -172,3 +172,32 @@ resource "google_project_iam_member" "cloudbuild_compute_admin" {
   role    = "roles/compute.instanceAdmin.v1"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 }
+
+# -----------------------------------------------------------------------------
+# 5. Outputs
+# -----------------------------------------------------------------------------
+
+output "subnet_id" {
+  description = "The ID of the petshop subnet."
+  value       = google_compute_subnetwork.petshop_subnet.id
+}
+
+output "http_tag" {
+  description = "The network tag for instances that allow HTTP traffic."
+  value       = local.http_tag
+}
+
+output "db_tag" {
+  description = "The network tag for the database instance."
+  value       = local.db_tag
+}
+
+output "dns_zone_name" {
+  description = "The name of the private DNS managed zone."
+  value       = google_dns_managed_zone.petshop_private_zone.name
+}
+
+output "dns_name" {
+  description = "The DNS name of the private zone."
+  value       = google_dns_managed_zone.petshop_private_zone.dns_name
+}
