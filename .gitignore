@@ -8,3 +8,4 @@ do.sh
 *.tfvars
 *.tfvars.json
 .DS_Store
+.DS_Store

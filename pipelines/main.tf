@@ -172,7 +172,7 @@ resource "google_cloudbuild_worker_pool" "packer_private_pool" {
 
 # Get the default Cloud Build Service Account identity
 data "google_project" "project" {
-  project_id = local.project_id
+  project_id = var.project_id
 }
 
 locals {
@@ -376,8 +376,8 @@ resource "google_secure_source_manager_repository" "test_trigger_repo" {
 
 # ADDED: A new trigger for the Pet Shop application image build.
 resource "google_cloudbuild_trigger" "petshop_node_trigger" {
-  project         = local.project_id
-  location        = local.region
+  project         = var.project_id
+  location        = var.region
   name            = "packer-petshop-image-builder-on-commit"
   description     = "Triggers build on commit to petshopnode folder"
   service_account = google_service_account.packer_builder_sa.id
@@ -395,7 +395,7 @@ resource "google_cloudbuild_trigger" "petshop_node_trigger" {
   }
 
   substitutions = {
-    _GCP_PROJECT = local.project_id
+    _GCP_PROJECT = var.project_id
     _IMAGE_NAME  = local.petshop_node_image_name
   }
 
@@ -408,8 +408,8 @@ resource "google_cloudbuild_trigger" "petshop_node_trigger" {
 
 # ADDED: A new trigger for the Apache image build.
 resource "google_cloudbuild_trigger" "apache_node_trigger" {
-  project         = local.project_id
-  location        = local.region
+  project         = var.project_id
+  location        = var.region
   name            = "packer-apache-image-builder-on-commit"
   description     = "Triggers build on commit to apachenode folder"
   service_account = google_service_account.packer_builder_sa.id
@@ -427,7 +427,7 @@ resource "google_cloudbuild_trigger" "apache_node_trigger" {
   }
 
   substitutions = {
-    _GCP_PROJECT = local.project_id
+    _GCP_PROJECT = var.project_id
     _IMAGE_NAME  = local.apache_node_image_name
   }
 
@@ -439,8 +439,8 @@ resource "google_cloudbuild_trigger" "apache_node_trigger" {
 
 # ADDED: A new trigger for applying Terraform configuration.
 resource "google_cloudbuild_trigger" "terraform_apply_trigger" {
-  project         = local.project_id
-  location        = local.region
+  project         = var.project_id
+  location        = var.region
   name            = "terraform-apply-on-commit"
   description     = "Triggers Terraform apply on commit to petshopdeploy folder"
   service_account = google_service_account.packer_builder_sa.id # For simplicity, reusing the packer SA.
