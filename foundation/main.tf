@@ -159,3 +159,5 @@ resource "google_project_iam_member" "cloudbuild_compute_admin" {
   role    = "roles/compute.instanceAdmin.v1"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 }
+
+##
