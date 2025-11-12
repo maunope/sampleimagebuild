@@ -70,7 +70,7 @@ build {
       "sudo sed -i '/^\\[mysqld\\]/a general_log = 1' /etc/mysql/mariadb.conf.d/50-server.cnf",
       "sudo sed -i '/^\\[mysqld\\]/a slow_query_log_file = /var/log/mysql/mysql-slow.log' /etc/mysql/mariadb.conf.d/50-server.cnf",
       "sudo sed -i '/^\\[mysqld\\]/a slow_query_log = 1' /etc/mysql/mariadb.conf.d/50-server.cnf",
-      "sudo systemctl restart mariadb",
+      "sudo systemctl restart mariadb ",
       "echo 'Installing Google Cloud Ops Agent...'",
       "curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh",
       "sudo bash add-google-cloud-ops-agent-repo.sh --also-install",

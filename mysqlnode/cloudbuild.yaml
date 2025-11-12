@@ -46,4 +46,4 @@ options:
   logging: CLOUD_LOGGING_ONLY
   # Use the same private pool for this build
   pool: 
-    name: 'projects/mnosedademo/locations/europe-west4/workerPools/packer_private_pool'
+    name: 'projects/${PROJECT_ID}/locations/europe-west4/workerPools/packer_private_pool'

@@ -53,5 +53,5 @@ options:
   logging: CLOUD_LOGGING_ONLY
   # ADDED: Specify the worker pool for this build.
   # This name must match the name of the pool created in Terraform.
-  pool: 
-    name: 'projects/mnosedademo/locations/europe-west4/workerPools/packer_private_pool'
+  pool:
+    name: 'projects/${PROJECT_ID}/locations/europe-west4/workerPools/packer_private_pool'

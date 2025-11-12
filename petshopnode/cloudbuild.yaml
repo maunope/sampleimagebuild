@@ -35,9 +35,9 @@ steps:
       - '--project=${_GCP_PROJECT}'
       - '--image-family=petshopnode-family' # CORRECTED: Use the correct gcloud flag
       - '--image-project=${_GCP_PROJECT}'   # CORRECTED: Use the correct gcloud flag
-      - '--region=europe-west4'
+      - '--region=${_REGION}'
       - '--network=petshop-vpc'
-      - '--subnet=petshop-subnet-europe-west4'
+      - '--subnet=petshop-subnet-${_REGION}'
       - '--tags=allow-http'
       - '--machine-type=e2-small'
       - '--shielded-secure-boot' # ADDED: Enable Shielded VM to comply with organization policy.
@@ -56,7 +56,7 @@ steps:
       - 'start-update'
       - 'petshop-mig' # The name of your MIG from the petshopdeploy Terraform
       - '--version=template=petshop-instance-template-${SHORT_SHA}'
-      - '--region=europe-west4'
+      - '--region=${_REGION}'
     waitFor: ['Create Instance Template']
 
   # ADDED: Step 5: Clean up old images in the family, keeping the last 3.
@@ -100,4 +100,4 @@ options:
   logging: CLOUD_LOGGING_ONLY
   # Use the same private pool for this build
   pool: 
-    name: 'projects/mnosedademo/locations/europe-west4/workerPools/packer_private_pool'
+    name: 'projects/${PROJECT_ID}/locations/${_REGION}/workerPools/packer_private_pool'

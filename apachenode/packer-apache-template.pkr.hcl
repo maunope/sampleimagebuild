@@ -61,7 +61,7 @@ build {
       "echo 'Installing Google Cloud Ops Agent...'",
       "curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh",
       "sudo bash add-google-cloud-ops-agent-repo.sh --also-install",
-      "echo 'Configuring Google Cloud Ops Agent for Apache logging...'",
+      "echo 'Configuring Google Cloud Ops Agent for Apache logging... '",
       "sudo mkdir -p /etc/google-cloud-ops-agent",
       "sudo tee /etc/google-cloud-ops-agent/config.yaml > /dev/null <<'EOF'",
       "logging:",
