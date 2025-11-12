@@ -2,8 +2,9 @@
 data "terraform_remote_state" "foundation" {
   backend = "gcs"
   config = {
-    bucket = "mnosedademo-tf-state" # The GCS bucket where state is stored
-    prefix = "petshop-foundation"   # The path to the foundation state file
+    # CORRECTED: The bucket name must be dynamic to match the one created by the foundation pipeline.
+    bucket = "${var.project_id}-tf-state-foundation"
+    prefix = "petshop-foundation" # The path to the foundation state file
   }
 }
 
