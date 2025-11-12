@@ -252,8 +252,6 @@ resource "google_compute_instance_template" "petshop_template" {
       "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/compute",
       "https://www.googleapis.com/auth/devstorage.full_control",
-      # CRITICAL FIX: Add the explicit scope required to access Secret Manager.
-      "https://www.googleapis.com/auth/cloud.secrets",
     ]
   }
 
