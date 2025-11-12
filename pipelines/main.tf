@@ -530,17 +530,13 @@ resource "google_cloudbuild_trigger" "terraform_destroy_foundation_trigger" {
   service_account = google_service_account.packer_builder_sa.id
   filename        = "foundation/cloudbuild-destroy.yaml"
 
-  # No 'github' block makes this a manual trigger.
-  # CORRECTED: A 'github' block is required. This configuration ensures
-  # the trigger is linked to the repo but will not fire automatically.
-  github {
-    owner = local.github_owner
-    name  = local.github_repo
-    push {
-      # A branch or tag is required, even with invert_regex.
-      branch       = "^$" # An empty branch name that will never match.
-      invert_regex = true
-    }
+  # CORRECTED: Use 'source_to_build' to link the repository source without
+  # creating an automatic push or pull request trigger. This is the correct
+  # way to create a manual trigger.
+  source_to_build {
+    uri       = "https://github.com/${local.github_owner}/${local.github_repo}"
+    ref       = "refs/heads/main"
+    repo_type = "GITHUB"
   }
 
   substitutions = {
@@ -565,17 +561,11 @@ resource "google_cloudbuild_trigger" "terraform_destroy_deploy_trigger" {
   service_account = google_service_account.packer_builder_sa.id
   filename        = "petshopdeploy/cloudbuild-destroy.yaml"
 
-  # No 'github' block makes this a manual trigger.
-  # CORRECTED: A 'github' block is required. This configuration ensures
-  # the trigger is linked to the repo but will not fire automatically.
-  github {
-    owner = local.github_owner
-    name  = local.github_repo
-    push {
-      # A branch or tag is required, even with invert_regex.
-      branch       = "^$" # An empty branch name that will never match.
-      invert_regex = true
-    }
+  # CORRECTED: Use 'source_to_build' for a true manual trigger.
+  source_to_build {
+    uri       = "https://github.com/${local.github_owner}/${local.github_repo}"
+    ref       = "refs/heads/main"
+    repo_type = "GITHUB"
   }
 
   substitutions = {
