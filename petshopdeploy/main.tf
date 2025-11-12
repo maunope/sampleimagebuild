@@ -64,7 +64,7 @@ resource "google_logging_project_sink" "default_sink_exclusion" {
   project = var.project_id
 
   # This must be set to the destination of the default sink to manage it.
-  destination = "logging.googleapis.com/projects/${local.project_id}/locations/global/buckets/_Default"
+  destination = "logging.googleapis.com/projects/${var.project_id}/locations/global/buckets/_Default"
 
   exclusions {
     name        = "exclude-gcp-health-checks"
@@ -313,36 +313,36 @@ resource "google_compute_instance" "petshop_db_instance" {
 
     # Fetch the entire secret JSON payload from Google Secret Manager.
     # The service account on this VM has permission to access it.
-    SECRET_PAYLOAD=$(gcloud secrets versions access latest --secret="petshop-db-credentials" --project="${var.project_id}")
-    DB_USERNAME=$(echo "$SECRET_PAYLOAD" | jq -r .username)
-    DB_PASSWORD=$(echo "$SECRET_PAYLOAD" | jq -r .password)
+    SECRET_PAYLOAD=$$(gcloud secrets versions access latest --secret="petshop-db-credentials" --project="${var.project_id}")
+    DB_USERNAME=$$(echo "$SECRET_PAYLOAD" | jq -r .username)
+    DB_PASSWORD=$$(echo "$SECRET_PAYLOAD" | jq -r .password)
 
     # Wait for MySQL to be ready.
     while ! mysqladmin ping --silent; do
         echo "Waiting for MySQL to start..."
         sleep 2
     done
-    
+
     # Create the new user and grant privileges. This assumes a blank root password initially.
     # Using a "here document" to pass multiple SQL commands.
     mysql -u root <<-MYSQL_SCRIPT
-    CREATE USER '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
-    GRANT ALL PRIVILEGES ON *.* TO '${DB_USERNAME}'@'%' WITH GRANT OPTION;
+    CREATE USER '$${DB_USERNAME}'@'%' IDENTIFIED BY '$${DB_PASSWORD}';
+    GRANT ALL PRIVILEGES ON *.* TO '$${DB_USERNAME}'@'%' WITH GRANT OPTION;
     FLUSH PRIVILEGES;
 MYSQL_SCRIPT
 
-    echo "Application user '${DB_USERNAME}' created."
+    echo "Application user '$${DB_USERNAME}' created."
 
     # As a final step, fetch the root credentials and set the root password.
     echo "Setting password for MySQL root user..."
-    ROOT_PASSWORD=$(gcloud secrets versions access latest --secret="petshop-db-root-credentials" --project="${var.project_id}" | jq -r .password)
+    ROOT_PASSWORD=$$(gcloud secrets versions access latest --secret="petshop-db-root-credentials" --project="${var.project_id}" | jq -r .password)
     
     # This command works because we are already authenticated as root with a blank password.
     mysqladmin -u root password "$ROOT_PASSWORD"
 
     # Create a .my.cnf file to allow root to log in without a password prompt locally.
     # This also serves as a flag file to prevent this script from running again.
-    echo -e "[client]\nuser=root\npassword=\"${ROOT_PASSWORD}\"" > /root/.my.cnf
+    echo -e "[client]\nuser=root\npassword=\"$${ROOT_PASSWORD}\"" > /root/.my.cnf
     chmod 600 /root/.my.cnf
 
     echo "MySQL root password has been set and secured."
