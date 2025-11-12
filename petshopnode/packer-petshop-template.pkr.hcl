@@ -11,6 +11,11 @@ variable "image_name" {
   default = "packer-petshop-image"
 }
 
+variable "zone" {
+  type    = string
+  default = "europe-west4-a" # Default value
+}
+
 # Packer block to define required plugins.
 packer {
   required_plugins {
@@ -26,7 +31,7 @@ source "googlecompute" "petshop-image-from-apache" {
   project_id = var.project_id
   # MODIFIED: Use the Apache image family as the source.
   source_image_family = "custom-apachenode-family"
-  zone                = "europe-west4-a"
+  zone                = var.zone
 
   # Specify the network and subnetwork for the temporary VM.
   network          = "packer-build-vpc"

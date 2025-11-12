@@ -26,6 +26,8 @@ steps:
       - 'project_id=${_GCP_PROJECT}'
       - '-var'
       - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
+      - '-var'
+      - 'zone=${_ZONE}'
       - 'packer-template.pkr.hcl'
     dir: 'customimage' # MODIFIED: Set the working directory to where the packer file is.
     waitFor: ['Packer Init'] # Ensure initialization is complete
@@ -54,4 +56,4 @@ options:
   # ADDED: Specify the worker pool for this build.
   # This name must match the name of the pool created in Terraform.
   pool:
-    name: 'projects/${PROJECT_ID}/locations/europe-west4/workerPools/packer_private_pool'
+    name: 'projects/${PROJECT_ID}/locations/${_REGION}/workerPools/packer_private_pool'

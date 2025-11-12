@@ -11,6 +11,11 @@ variable "image_name" {
   default = "packer-mysql-image"
 }
 
+variable "zone" {
+  type    = string
+  default = "europe-west4-a" # Default value
+}
+
 # Packer block to define required plugins and their versions.
 packer {
   required_plugins {
@@ -26,7 +31,7 @@ source "googlecompute" "mysql-image-from-custom-debian" {
   project_id = var.project_id
   # MODIFIED: Use the previously created image family as the source.
   source_image_family = "custom-debian-family"
-  zone                = "europe-west4-a"
+  zone                = var.zone
 
   # Specify the network and subnetwork for the temporary VM.
   network          = "packer-build-vpc"

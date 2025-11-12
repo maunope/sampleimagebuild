@@ -11,6 +11,11 @@ variable "image_name" {
   default = "packer-debian-image"
 }
 
+variable "zone" {
+  type    = string
+  default = "europe-west4-a"
+}
+
 # Packer block to define required plugins and their versions.
 packer {
   required_plugins {
@@ -29,7 +34,7 @@ packer {
 source "googlecompute" "debian-image" {
   project_id          = var.project_id
   source_image_family = "debian-11"
-  zone                = "europe-west4-a"
+  zone                = var.zone
 
   # ADDED: Specify the network and subnetwork for the temporary VM.
   network             = "packer-build-vpc"

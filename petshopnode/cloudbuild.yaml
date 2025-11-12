@@ -19,6 +19,8 @@ steps:
       - 'project_id=${_GCP_PROJECT}'
       - '-var'
       - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
+      - '-var'
+      - 'zone=${_ZONE}'
       - 'packer-petshop-template.pkr.hcl'
     dir: 'petshopnode' # Set the working directory to this folder
     waitFor: ['Packer Init Petshop'] # Ensure initialization is complete

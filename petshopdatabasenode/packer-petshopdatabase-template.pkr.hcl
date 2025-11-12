@@ -11,6 +11,11 @@ variable "image_name" {
   default = "packer-petshopdatabase-image"
 }
 
+variable "zone" {
+  type    = string
+  default = "europe-west4-a" # Default value
+}
+
 # Packer block to define required plugins and their versions.
 packer {
   required_plugins {
@@ -26,7 +31,7 @@ source "googlecompute" "petshopdatabase-image-from-mysql" {
   project_id = var.project_id
   # MODIFIED: Use the mysql node image family as the source.
   source_image_family = "custom-mysqlnode-family"
-  zone                = "europe-west4-a"
+  zone                = var.zone
 
   # Specify the network and subnetwork for the temporary VM.
   network          = "packer-build-vpc"

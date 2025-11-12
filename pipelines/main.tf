@@ -162,7 +162,8 @@ resource "google_compute_firewall" "allow_ssh_from_anywhere" {
 
 resource "google_cloudbuild_worker_pool" "packer_private_pool" {
   name     = "packer_private_pool"
-  location = "europe-west4"
+  location = var.region
+  project  = var.project_id
   worker_config {
     disk_size_gb   = 100
     machine_type   = "e2-standard-4"
@@ -294,6 +295,8 @@ resource "google_cloudbuild_trigger" "github_trigger" {
   substitutions = {
     _GCP_PROJECT = var.project_id
     _IMAGE_NAME  = local.debian_ops_agent_image_name
+    _REGION      = var.region
+    _ZONE        = "${var.region}-a"
   }
 
   depends_on = [
@@ -325,6 +328,8 @@ resource "google_cloudbuild_trigger" "mysql_node_trigger" {
   substitutions = {
     _GCP_PROJECT = var.project_id
     _IMAGE_NAME  = local.mysql_node_image_name
+    _REGION      = var.region
+    _ZONE        = "${var.region}-a"
   }
 
   depends_on = [
@@ -356,6 +361,8 @@ resource "google_cloudbuild_trigger" "petshop_database_node_trigger" {
   substitutions = {
     _GCP_PROJECT = var.project_id
     _IMAGE_NAME  = local.petshop_database_node_image_name
+    _REGION      = var.region
+    _ZONE        = "${var.region}-a" # Pass the zone to the build
   }
 
   depends_on = [
@@ -409,6 +416,8 @@ resource "google_cloudbuild_trigger" "petshop_node_trigger" {
   substitutions = {
     _GCP_PROJECT = var.project_id
     _IMAGE_NAME  = local.petshop_node_image_name
+    _REGION      = var.region
+    _ZONE        = "${var.region}-a"
   }
 
   depends_on = [
@@ -441,6 +450,8 @@ resource "google_cloudbuild_trigger" "apache_node_trigger" {
   substitutions = {
     _GCP_PROJECT = var.project_id
     _IMAGE_NAME  = local.apache_node_image_name
+    _REGION      = var.region
+    _ZONE        = "${var.region}-a"
   }
 
   depends_on = [
@@ -475,6 +486,7 @@ resource "google_cloudbuild_trigger" "terraform_apply_trigger" {
   substitutions = {
     _PROJECT_ID  = var.project_id
     _REGION      = var.region
+    _ZONE        = "${var.region}-a"
     _DB_USERNAME = var.db_username
   }
 
@@ -507,6 +519,7 @@ resource "google_cloudbuild_trigger" "terraform_apply_foundation_trigger" {
   substitutions = {
     _PROJECT_ID = var.project_id
     _REGION     = var.region
+    _ZONE       = "${var.region}-a"
   }
 
   # ADDED: Require manual approval before this trigger can execute.

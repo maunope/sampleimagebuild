@@ -19,6 +19,8 @@ steps:
       - 'project_id=${_GCP_PROJECT}'
       - '-var'
       - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
+      - '-var'
+      - 'zone=${_ZONE}' # Use the zone substitution
       - 'packer-petshopdatabase-template.pkr.hcl'
     dir: 'petshopdatabasenode' # Set the working directory to this folder
     waitFor: ['Packer Init Petshop Database'] # Ensure initialization is complete
@@ -46,4 +48,4 @@ options:
   logging: CLOUD_LOGGING_ONLY
   # Use the same private pool for this build
   pool: 
-    name: 'projects/${PROJECT_ID}/locations/europe-west4/workerPools/packer_private_pool'
+    name: 'projects/${PROJECT_ID}/locations/${_REGION}/workerPools/packer_private_pool'
