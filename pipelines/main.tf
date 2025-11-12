@@ -520,3 +520,69 @@ resource "google_cloudbuild_trigger" "terraform_apply_foundation_trigger" {
 
   depends_on = [google_project_iam_member.packer_builder_sa_roles]
 }
+
+# ADDED: A manual trigger to DESTROY the Foundation infrastructure.
+resource "google_cloudbuild_trigger" "terraform_destroy_foundation_trigger" {
+  project         = var.project_id
+  location        = var.region
+  name            = "manual-destroy-foundation"
+  description     = "Manually triggered pipeline to destroy the foundation infrastructure."
+  service_account = google_service_account.packer_builder_sa.id
+  filename        = "foundation/cloudbuild-destroy.yaml"
+
+  # No 'github' block makes this a manual trigger.
+  # CORRECTED: A 'github' block is required. This configuration ensures
+  # the trigger is linked to the repo but will not fire automatically.
+  github {
+    owner = local.github_owner
+    name  = local.github_repo
+    push {
+      invert_regex = true
+    }
+  }
+
+  substitutions = {
+    _PROJECT_ID = var.project_id
+    _REGION     = var.region
+  }
+
+  # Require manual approval as a safety measure before destroying anything.
+  approval_config {
+    approval_required = true
+  }
+
+  depends_on = [google_project_iam_member.packer_builder_sa_roles]
+}
+
+# ADDED: A manual trigger to DESTROY the Pet Shop application deployment.
+resource "google_cloudbuild_trigger" "terraform_destroy_deploy_trigger" {
+  project         = var.project_id
+  location        = var.region
+  name            = "manual-destroy-petshop-deploy"
+  description     = "Manually triggered pipeline to destroy the Pet Shop application deployment."
+  service_account = google_service_account.packer_builder_sa.id
+  filename        = "petshopdeploy/cloudbuild-destroy.yaml"
+
+  # No 'github' block makes this a manual trigger.
+  # CORRECTED: A 'github' block is required. This configuration ensures
+  # the trigger is linked to the repo but will not fire automatically.
+  github {
+    owner = local.github_owner
+    name  = local.github_repo
+    push {
+      invert_regex = true
+    }
+  }
+
+  substitutions = {
+    _PROJECT_ID  = var.project_id
+    _REGION      = var.region
+    _DB_USERNAME = var.db_username
+  }
+
+  approval_config {
+    approval_required = true
+  }
+
+  depends_on = [google_project_iam_member.packer_builder_sa_roles]
+}
