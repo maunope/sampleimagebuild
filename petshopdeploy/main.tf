@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.20"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
   # ADDED: Configure the GCS backend for storing Terraform state.
   # The bucket name will be passed in during the 'terraform init' step.
@@ -33,6 +37,11 @@ variable "region" {
   description = "The Google Cloud region to deploy resources into."
   type        = string
   default     = "europe-west4"
+}
+variable "db_username" {
+  description = "The username for the Pet Shop database."
+  type        = string
+  default     = "petshopuser"
 }
 locals {
   vpc_name      = "petshop-vpc"
@@ -78,15 +87,49 @@ resource "google_secret_manager_secret" "db_credentials" {
   }
 }
 
+# ADDED: Generate a random password for the database.
+# This password will be stored in the Terraform state but not in the code.
+resource "random_password" "db_password" {
+  length           = 20
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
 # ADDED: Add a version to the secret with the database credentials
 resource "google_secret_manager_secret_version" "db_credentials_version" {
   secret = google_secret_manager_secret.db_credentials.id
   secret_data = jsonencode({
-    username = "root"
-    password = "root"
+    # Use the variable for username and the random value for password
+    username = var.db_username
+    password = random_password.db_password.result
   })
 }
 
+# ADDED: Create a separate secret for the database root user.
+resource "google_secret_manager_secret" "db_root_credentials" {
+  secret_id = "petshop-db-root-credentials"
+  project   = var.project_id
+
+  replication {
+    auto {}
+  }
+}
+
+# ADDED: Generate a random password for the root user.
+resource "random_password" "db_root_password" {
+  length           = 20
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+# ADDED: Add a version to the root secret with the username 'root' and the random password.
+resource "google_secret_manager_secret_version" "db_root_credentials_version" {
+  secret = google_secret_manager_secret.db_root_credentials.id
+  secret_data = jsonencode({
+    username = "root"
+    password = random_password.db_root_password.result
+  })
+}
 # -----------------------------------------------------------------------------
 # Application Service Account
 # -----------------------------------------------------------------------------
@@ -134,6 +177,28 @@ resource "google_project_iam_member" "petshop_db_sa_minimal_roles" {
   project = var.project_id
   role    = each.key
   member  = google_service_account.petshop_db_sa.member
+}
+
+# ADDED: Grant the database service account access to its own credentials secret.
+# This is required for the startup script to fetch the password.
+resource "google_secret_manager_secret_iam_member" "petshop_db_sa_secret_accessor" {
+  project   = google_secret_manager_secret.db_credentials.project
+  secret_id = google_secret_manager_secret.db_credentials.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = google_service_account.petshop_db_sa.member
+
+  depends_on = [google_secret_manager_secret_version.db_credentials_version]
+}
+
+# ADDED: Grant the database service account access to the ROOT credentials secret.
+# This is required for the startup script to set the root password.
+resource "google_secret_manager_secret_iam_member" "petshop_db_sa_root_secret_accessor" {
+  project   = google_secret_manager_secret.db_root_credentials.project
+  secret_id = google_secret_manager_secret.db_root_credentials.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = google_service_account.petshop_db_sa.member
+
+  depends_on = [google_secret_manager_secret_version.db_root_credentials_version]
 }
 
 # ADDED: Create a DNS A record for the database instance
@@ -230,6 +295,58 @@ resource "google_compute_instance" "petshop_db_instance" {
   }
 
   tags = [data.terraform_remote_state.foundation.outputs.db_tag]
+
+  # ADDED: Startup script to fetch the DB password from Secret Manager and set it.
+  # This script runs on the first boot and configures the MySQL root password.
+  metadata_startup_script = <<-EOT
+    #!/bin/bash
+    # Exit immediately if a command exits with a non-zero status.
+    set -e
+
+    # Only run this on the first boot.
+    if [ -f /root/.my.cnf ]; then
+      echo "MySQL password already configured. Exiting."
+      exit 0
+    fi
+
+    echo "First boot. Configuring MySQL root password..."
+
+    # Fetch the entire secret JSON payload from Google Secret Manager.
+    # The service account on this VM has permission to access it.
+    SECRET_PAYLOAD=$(gcloud secrets versions access latest --secret="petshop-db-credentials" --project="${var.project_id}")
+    DB_USERNAME=$(echo "$SECRET_PAYLOAD" | jq -r .username)
+    DB_PASSWORD=$(echo "$SECRET_PAYLOAD" | jq -r .password)
+
+    # Wait for MySQL to be ready.
+    while ! mysqladmin ping --silent; do
+        echo "Waiting for MySQL to start..."
+        sleep 2
+    done
+    
+    # Create the new user and grant privileges. This assumes a blank root password initially.
+    # Using a "here document" to pass multiple SQL commands.
+    mysql -u root <<-MYSQL_SCRIPT
+    CREATE USER '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
+    GRANT ALL PRIVILEGES ON *.* TO '${DB_USERNAME}'@'%' WITH GRANT OPTION;
+    FLUSH PRIVILEGES;
+MYSQL_SCRIPT
+
+    echo "Application user '${DB_USERNAME}' created."
+
+    # As a final step, fetch the root credentials and set the root password.
+    echo "Setting password for MySQL root user..."
+    ROOT_PASSWORD=$(gcloud secrets versions access latest --secret="petshop-db-root-credentials" --project="${var.project_id}" | jq -r .password)
+    
+    # This command works because we are already authenticated as root with a blank password.
+    mysqladmin -u root password "$ROOT_PASSWORD"
+
+    # Create a .my.cnf file to allow root to log in without a password prompt locally.
+    # This also serves as a flag file to prevent this script from running again.
+    echo -e "[client]\nuser=root\npassword=\"${ROOT_PASSWORD}\"" > /root/.my.cnf
+    chmod 600 /root/.my.cnf
+
+    echo "MySQL root password has been set and secured."
+  EOT
 
   # FIXED: Removed create_before_destroy for fixed-name instance to avoid "already exists" error.
   # This will cause brief downtime during database instance updates.
