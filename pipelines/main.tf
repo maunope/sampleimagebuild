@@ -467,8 +467,8 @@ resource "google_cloudbuild_trigger" "terraform_apply_trigger" {
   # These values will be available inside the cloudbuild.yaml and are used
   # to configure the deployment for a specific environment.
   substitutions = {
-    _PROJECT_ID  = "mnosedademo"
-    _REGION      = "europe-west4"
+    _PROJECT_ID  = var.project_id
+    _REGION      = var.region
     _DB_USERNAME = "petshopuser"
   }
 
