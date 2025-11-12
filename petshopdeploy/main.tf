@@ -171,7 +171,8 @@ resource "google_secret_manager_secret_iam_member" "petshop_sa_secret_accessor" 
   depends_on = [google_secret_manager_secret_version.db_credentials_version]
 }
 
-# ADDED: Also grant the APPLICATION service account access to the ROOT credentials secret for consistency and debugging.
+# RE-ADDED: Grant the APPLICATION service account access to the ROOT credentials secret.
+# Removing this resource causes Terraform to try and destroy the secret itself.
 resource "google_secret_manager_secret_iam_member" "petshop_sa_root_secret_accessor" {
   project   = google_secret_manager_secret.db_root_credentials.project
   secret_id = google_secret_manager_secret.db_root_credentials.secret_id
@@ -262,6 +263,8 @@ resource "google_compute_instance_template" "petshop_template" {
       "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/compute",
       "https://www.googleapis.com/auth/devstorage.full_control",
+      # CRITICAL FIX: Add the explicit scope required to access Secret Manager.
+      "https://www.googleapis.com/auth/cloud.secrets",
     ]
   }
 
