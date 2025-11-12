@@ -149,7 +149,9 @@ resource "google_project_iam_member" "petshop_sa_minimal_roles" {
   role    = each.key
   member  = google_service_account.petshop_sa.member
 }
-# ADDED: Grant the new service account access to the database credentials secret.
+
+# CORRECTED: Grant the APPLICATION service account access to the database credentials secret.
+# This was the missing piece causing the client VMs to fail.
 resource "google_secret_manager_secret_iam_member" "petshop_sa_secret_accessor" {
   project   = google_secret_manager_secret.db_credentials.project
   secret_id = google_secret_manager_secret.db_credentials.secret_id
@@ -157,6 +159,16 @@ resource "google_secret_manager_secret_iam_member" "petshop_sa_secret_accessor" 
   member    = google_service_account.petshop_sa.member
 
   depends_on = [google_secret_manager_secret_version.db_credentials_version]
+}
+
+# ADDED: Also grant the APPLICATION service account access to the ROOT credentials secret for consistency and debugging.
+resource "google_secret_manager_secret_iam_member" "petshop_sa_root_secret_accessor" {
+  project   = google_secret_manager_secret.db_root_credentials.project
+  secret_id = google_secret_manager_secret.db_root_credentials.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = google_service_account.petshop_sa.member
+
+  depends_on = [google_secret_manager_secret_version.db_root_credentials_version]
 }
 
 # ADDED: Create a dedicated service account for the Pet Shop database instance.
