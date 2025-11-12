@@ -61,7 +61,7 @@ resource "google_compute_network" "petshop_vpc" {
 
 # Create a subnet in the specified region
 resource "google_compute_subnetwork" "petshop_subnet" {
-  name          = "petshop-subnet-${local.region}"
+  name          = "petshop-subnet-${var.region}"
   ip_cidr_range = "10.20.0.0/24"
   region        = var.region
   network       = google_compute_network.petshop_vpc.id
