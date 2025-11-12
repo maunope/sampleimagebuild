@@ -294,58 +294,6 @@ resource "google_compute_instance" "petshop_db_instance" {
 
   tags = [data.terraform_remote_state.foundation.outputs.db_tag]
 
-  # ADDED: Startup script to fetch the DB password from Secret Manager and set it.
-  # This script runs on the first boot and configures the MySQL root password.
-  metadata_startup_script = <<-EOT
-    #!/bin/bash
-    # Exit immediately if a command exits with a non-zero status.
-    set -e
-
-    # Only run this on the first boot.
-    if [ -f /root/.my.cnf ]; then
-      echo "MySQL password already configured. Exiting."
-      exit 0
-    fi
-
-    echo "First boot. Configuring MySQL root password..."
-
-    # Fetch the entire secret JSON payload from Google Secret Manager.
-    # The service account on this VM has permission to access it.
-    SECRET_PAYLOAD=$$(gcloud secrets versions access latest --secret="petshop-db-credentials" --project="${var.project_id}")
-    DB_USERNAME=$$(echo "$SECRET_PAYLOAD" | jq -r .username)
-    DB_PASSWORD=$$(echo "$SECRET_PAYLOAD" | jq -r .password)
-
-    # Wait for MySQL to be ready.
-    while ! mysqladmin ping --silent; do
-        echo "Waiting for MySQL to start..."
-        sleep 2
-    done
-
-    # Create the new user and grant privileges. This assumes a blank root password initially.
-    # Using a "here document" to pass multiple SQL commands.
-    mysql -u root <<-MYSQL_SCRIPT
-    CREATE USER '$${DB_USERNAME}'@'%' IDENTIFIED BY '$${DB_PASSWORD}';
-    GRANT ALL PRIVILEGES ON *.* TO '$${DB_USERNAME}'@'%' WITH GRANT OPTION;
-    FLUSH PRIVILEGES;
-MYSQL_SCRIPT
-
-    echo "Application user '$${DB_USERNAME}' created."
-
-    # As a final step, fetch the root credentials and set the root password.
-    echo "Setting password for MySQL root user..."
-    ROOT_PASSWORD=$$(gcloud secrets versions access latest --secret="petshop-db-root-credentials" --project="${var.project_id}" | jq -r .password)
-    
-    # This command works because we are already authenticated as root with a blank password.
-    mysqladmin -u root password "$ROOT_PASSWORD"
-
-    # Create a .my.cnf file to allow root to log in without a password prompt locally.
-    # This also serves as a flag file to prevent this script from running again.
-    echo -e "[client]\nuser=root\npassword=\"$${ROOT_PASSWORD}\"" > /root/.my.cnf
-    chmod 600 /root/.my.cnf
-
-    echo "MySQL root password has been set and secured."
-  EOT
-
   # FIXED: Removed create_before_destroy for fixed-name instance to avoid "already exists" error.
   # This will cause brief downtime during database instance updates.
   lifecycle {
