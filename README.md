@@ -45,7 +45,7 @@ This step uses Terraform to create the private worker pool, service accounts, an
 
 ### Step 3: Build Infrastructure and VM Images
 
-Now that the triggers exist, you must run them in a specific order to build the infrastructure layers and VM images correctly. Navigate to **Cloud Build** > **Triggers** in the console to run each trigger. **Wait for each build to complete** before starting the next one.
+Now that the triggers exist, you must run them in a specific order to build the infrastructure layers and VM images correctly. Navigate to **Cloud Build** > **Triggers** in the console to run each trigger. **Wait for linux image build to complete** before starting Apache and MySQL ones, and wait for them both to finish before launching pethsop specific nodes builds. This is the most time-consuming part of the process, as building multiple VM images can take a significant amount of time.
 
 1.  **Deploy Foundation Infrastructure**:
     *   Find the `terraform-apply-foundation-on-commit` trigger and click **Run**.
