@@ -19,14 +19,22 @@ terraform {
 }
 
 provider "google" {
-  project = local.project_id
-  region  = local.region
+  project = var.project_id
+  region  = var.region
 }
 
 //todo move this to a shared locals.tf
+variable "project_id" {
+  description = "The Google Cloud project ID to deploy resources into."
+  type        = string
+  default     = "dummy"
+}
+variable "region" {
+  description = "The Google Cloud region to deploy resources into."
+  type        = string
+  default     = "europe-west4"
+}
 locals {
-  project_id    = "mnosedademo"
-  region        = "europe-west4"
   vpc_name      = "petshop-vpc"
   db_name       = "petshop-db"
   dns_zone_name = "petshop-private-zone"
@@ -44,7 +52,7 @@ locals {
 # ADDED: Manage the default logging sink to add an exclusion for health checks.
 resource "google_logging_project_sink" "default_sink_exclusion" {
   name    = "_Default"
-  project = local.project_id
+  project = var.project_id
 
   # This must be set to the destination of the default sink to manage it.
   destination = "logging.googleapis.com/projects/${local.project_id}/locations/global/buckets/_Default"
@@ -63,7 +71,7 @@ resource "google_logging_project_sink" "default_sink_exclusion" {
 # ADDED: Create a secret to hold the database credentials
 resource "google_secret_manager_secret" "db_credentials" {
   secret_id = "petshop-db-credentials"
-  project   = local.project_id
+  project   = var.project_id
 
   replication {
     auto {} # CORRECTED: Used 'auto {}' for automatic replication
@@ -87,7 +95,7 @@ resource "google_secret_manager_secret_version" "db_credentials_version" {
 resource "google_service_account" "petshop_sa" {
   account_id   = "petshopsa"
   display_name = "Pet Shop Application Service Account"
-  project      = local.project_id
+  project      = var.project_id
 }
 
 # ADDED: Grant the new service account the minimum necessary roles for its function.
@@ -96,7 +104,7 @@ resource "google_project_iam_member" "petshop_sa_minimal_roles" {
     "roles/logging.logWriter",       # To write logs
     "roles/monitoring.metricWriter", # To write metrics
   ])
-  project = local.project_id
+  project = var.project_id
   role    = each.key
   member  = google_service_account.petshop_sa.member
 }
@@ -114,7 +122,7 @@ resource "google_secret_manager_secret_iam_member" "petshop_sa_secret_accessor" 
 resource "google_service_account" "petshop_db_sa" {
   account_id   = "petshopdbsa"
   display_name = "Pet Shop Database Service Account"
-  project      = local.project_id
+  project      = var.project_id
 }
 
 # ADDED: Grant the database service account the minimum necessary roles.
@@ -123,7 +131,7 @@ resource "google_project_iam_member" "petshop_db_sa_minimal_roles" {
     "roles/logging.logWriter",       # To write logs
     "roles/monitoring.metricWriter", # To write metrics
   ])
-  project = local.project_id
+  project = var.project_id
   role    = each.key
   member  = google_service_account.petshop_db_sa.member
 }
@@ -190,7 +198,7 @@ resource "google_compute_instance_template" "petshop_template" {
 resource "google_compute_instance" "petshop_db_instance" {
   name         = local.db_name
   machine_type = "e2-small"
-  zone         = "${local.region}-a"
+  zone         = "${var.region}-a"
 
   # Use the latest image from the petshopdatabasenode-family
   boot_disk {
@@ -232,7 +240,7 @@ resource "google_compute_instance" "petshop_db_instance" {
 # Create a regional Managed Instance Group (MIG)
 resource "google_compute_region_instance_group_manager" "petshop_mig" {
   name   = "petshop-mig"
-  region = local.region
+  region = var.region
 
   version {
     instance_template = google_compute_instance_template.petshop_template.id

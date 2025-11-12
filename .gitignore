@@ -1,4 +1,10 @@
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/*
+.terraform.lock.hcl
+.DS_Store
+.DS_Store
 do.sh
-petshopdeploy/providers/registry.terraform.io/hashicorp/google/5.45.2/darwin_arm64/terraform-provider-google_v5.45.2_x5
-petshopdeploy/providers/registry.terraform.io/hashicorp/google/5.45.2/darwin_arm64/LICENSE.txt
+*.tfvars
+*.tfvars.json
 .DS_Store

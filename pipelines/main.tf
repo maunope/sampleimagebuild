@@ -17,18 +17,28 @@ terraform {
 # ADDED: Explicit provider configuration. This tells Terraform how to
 # configure and use the providers declared above.
 provider "google" {
-  project = local.project_id
+  project = var.project_id
 }
 
 provider "google-beta" {
-  project = local.project_id
+  project = var.project_id
   alias   = "beta"
 }
 
 
+variable "project_id" {
+  description = "The Google Cloud project ID to deploy resources into."
+  type        = string
+  default     = "dummy"
+}
+
+variable "region" {
+  description = "The Google Cloud region to deploy resources into."
+  type        = string
+  default     = "europe-west4"
+}
+
 locals {
-  project_id                       = "mnosedademo"
-  region                           = "europe-west4"
   github_owner                     = "maunope"
   github_repo                      = "sampleimagebuild"
   debian_ops_agent_image_name      = "debian-ops-agent-image"
@@ -50,7 +60,7 @@ resource "google_project_service" "enabled_apis" {
     "securesourcemanager.googleapis.com",
     "servicenetworking.googleapis.com", # Required for VPC peering for the private pool
   ])
-  project            = local.project_id
+  project            = var.project_id
   service            = each.key
   disable_on_destroy = false
 }
@@ -61,7 +71,7 @@ resource "google_project_service" "enabled_apis" {
 
 # Create a custom VPC for the build environment
 resource "google_compute_network" "build_vpc" {
-  project                 = local.project_id
+  project                 = var.project_id
   name                    = "packer-build-vpc"
   auto_create_subnetworks = false
   depends_on              = [google_project_service.enabled_apis]
@@ -69,17 +79,17 @@ resource "google_compute_network" "build_vpc" {
 
 # Create a subnet in the specified region
 resource "google_compute_subnetwork" "build_subnet" {
-  project                  = local.project_id
+  project                  = var.project_id
   name                     = "packer-build-subnet"
   ip_cidr_range            = "10.10.0.0/24"
-  region                   = local.region
+  region                   = var.region
   network                  = google_compute_network.build_vpc.id
   private_ip_google_access = true
 }
 
 # Reserve an IP range for the Service Networking API, required for the private pool
 resource "google_compute_global_address" "private_service_access_range" {
-  project       = local.project_id
+  project       = var.project_id
   name          = "private-service-access-for-packer-pool"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
@@ -97,18 +107,18 @@ resource "google_service_networking_connection" "private_service_access_connecti
 
 # Create a router for the NAT gateway
 resource "google_compute_router" "build_router" {
-  project = local.project_id
+  project = var.project_id
   name    = "packer-build-router"
-  region  = local.region
+  region  = var.region
   network = google_compute_network.build_vpc.id
 }
 
 # Create the Cloud NAT gateway to allow egress traffic from the private pool
 resource "google_compute_router_nat" "build_nat" {
-  project                            = local.project_id
+  project                            = var.project_id
   name                               = "packer-build-nat-gateway"
   router                             = google_compute_router.build_router.name
-  region                             = local.region
+  region                             = var.region
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
   subnetwork {
@@ -123,7 +133,7 @@ resource "google_compute_router_nat" "build_nat" {
 
 
 resource "google_compute_firewall" "allow_ssh_from_anywhere" {
-  project = local.project_id
+  project = var.project_id
   name    = "packer-build-vpc-allow-ssh"
   network = google_compute_network.build_vpc.name
 
@@ -177,7 +187,7 @@ resource "google_project_iam_member" "cloudbuild_sa_roles" {
     "roles/serviceusage.serviceUsageConsumer", // Service Usage Consumer
     "roles/storage.objectCreator",             // Storage Object Creator
   ])
-  project    = local.project_id
+  project    = var.project_id
   role       = each.key
   member     = "serviceAccount:${local.cloudbuild_sa}"
   depends_on = [google_project_service.enabled_apis]
@@ -185,7 +195,7 @@ resource "google_project_iam_member" "cloudbuild_sa_roles" {
 
 # Create a dedicated service account for the Packer build trigger
 resource "google_service_account" "packer_builder_sa" {
-  project      = local.project_id
+  project      = var.project_id
   account_id   = "packer-builder"
   display_name = "Packer Image Builder Service Account"
 }
@@ -209,7 +219,7 @@ resource "google_project_iam_member" "packer_builder_sa_roles" {
     # Add Editor role on top to ensure all permissions
     "roles/editor"
   ])
-  project = local.project_id
+  project = var.project_id
   role    = each.key
   member  = google_service_account.packer_builder_sa.member
 }
@@ -217,11 +227,11 @@ resource "google_project_iam_member" "packer_builder_sa_roles" {
 # ADDED: Grant the default Compute Engine service account permission to use custom images.
 # This is critical for Managed Instance Groups to be able to create instances from your images.
 data "google_compute_default_service_account" "default" {
-  project = local.project_id
+  project = var.project_id
 }
 
 resource "google_project_iam_member" "compute_sa_image_user" {
-  project    = local.project_id
+  project    = var.project_id
   role       = "roles/compute.imageUser"
   member     = "serviceAccount:${data.google_compute_default_service_account.default.email}"
   depends_on = [google_project_service.enabled_apis]
@@ -229,7 +239,7 @@ resource "google_project_iam_member" "compute_sa_image_user" {
 
 # Grant Editor role to a specific user
 resource "google_project_iam_member" "editor_for_lucace" {
-  project = local.project_id
+  project = var.project_id
   role    = "roles/editor"
   member  = "user:lucace@mnoseda.altostrat.com"
 }
@@ -249,8 +259,8 @@ resource "google_organization_iam_member" "browser_for_lucace_on_org" {
 # Create a connection to GitHub
 # Create a trigger that fires on commits to the main branch
 resource "google_cloudbuild_trigger" "github_trigger" {
-  project         = local.project_id
-  location        = local.region
+  project         = var.project_id
+  location        = var.region
   name            = "packer-image-builder-on-main-commit"
   description     = "Triggers build on commit to main branch of ${local.github_repo}"
   service_account = google_service_account.packer_builder_sa.id
@@ -270,7 +280,7 @@ resource "google_cloudbuild_trigger" "github_trigger" {
   }
 
   substitutions = {
-    _GCP_PROJECT = local.project_id
+    _GCP_PROJECT = var.project_id
     _IMAGE_NAME  = local.debian_ops_agent_image_name
   }
 
@@ -282,8 +292,8 @@ resource "google_cloudbuild_trigger" "github_trigger" {
 
 # ADDED: A new trigger for the MySQL image build.
 resource "google_cloudbuild_trigger" "mysql_node_trigger" {
-  project         = local.project_id
-  location        = local.region
+  project         = var.project_id
+  location        = var.region
   name            = "packer-mysql-image-builder-on-commit"
   description     = "Triggers build on commit to mysqlnode folder"
   service_account = google_service_account.packer_builder_sa.id
@@ -301,7 +311,7 @@ resource "google_cloudbuild_trigger" "mysql_node_trigger" {
   }
 
   substitutions = {
-    _GCP_PROJECT = local.project_id
+    _GCP_PROJECT = var.project_id
     _IMAGE_NAME  = local.mysql_node_image_name
   }
 
@@ -313,8 +323,8 @@ resource "google_cloudbuild_trigger" "mysql_node_trigger" {
 
 # ADDED: A new trigger for the Petshop Database image build.
 resource "google_cloudbuild_trigger" "petshop_database_node_trigger" {
-  project         = local.project_id
-  location        = local.region
+  project         = var.project_id
+  location        = var.region
   name            = "packer-petshop-database-image-builder-on-commit"
   description     = "Triggers build on commit to petshopdatabasenode folder"
   service_account = google_service_account.packer_builder_sa.id
@@ -332,7 +342,7 @@ resource "google_cloudbuild_trigger" "petshop_database_node_trigger" {
   }
 
   substitutions = {
-    _GCP_PROJECT = local.project_id
+    _GCP_PROJECT = var.project_id
     _IMAGE_NAME  = local.petshop_database_node_image_name
   }
 
@@ -350,8 +360,8 @@ resource "google_cloudbuild_trigger" "petshop_database_node_trigger" {
 resource "google_secure_source_manager_instance" "sample_repos_instance" {
   provider    = google-beta
   instance_id = "sample-repos-instance"
-  location    = local.region
-  project     = local.project_id
+  location    = var.region
+  project     = var.project_id
   depends_on  = [google_project_service.enabled_apis]
 }
 
@@ -360,8 +370,8 @@ resource "google_secure_source_manager_repository" "test_trigger_repo" {
   provider      = google-beta
   instance      = google_secure_source_manager_instance.sample_repos_instance.name
   repository_id = "test-trigger"
-  project       = local.project_id
-  location      = local.region
+  project       = var.project_id
+  location      = var.region
 }
 
 # ADDED: A new trigger for the Pet Shop application image build.

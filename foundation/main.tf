@@ -18,18 +18,28 @@ terraform {
 }
 
 provider "google" {
-  project = local.project_id
-  region  = local.region
+  project = var.project_id
+  region  = var.region
 }
 
 data "google_project" "project" {
-  project_id = local.project_id
+  project_id = var.project_id
 }
 
 
+variable "project_id" {
+  description = "The Google Cloud project ID to deploy resources into."
+  type        = string
+  default     = "dummy"
+}
+
+variable "region" {
+  description = "The Google Cloud region to deploy resources into."
+  type        = string
+  default     = "europe-west4"
+}
+
 locals {
-  project_id    = "mnosedademo"
-  region        = "europe-west4"
   vpc_name      = "petshop-vpc"
   db_name       = "petshop-db"
   dns_zone_name = "petshop-private-zone"
@@ -53,7 +63,7 @@ resource "google_compute_network" "petshop_vpc" {
 resource "google_compute_subnetwork" "petshop_subnet" {
   name          = "petshop-subnet-${local.region}"
   ip_cidr_range = "10.20.0.0/24"
-  region        = local.region
+  region        = var.region
   network       = google_compute_network.petshop_vpc.id
 }
 
@@ -145,7 +155,7 @@ resource "google_dns_managed_zone" "petshop_private_zone" {
 # ADDED: Grant the default Cloud Build service account the necessary role to manage instance templates and MIGs.
 # This is required for the petshopnode CI/CD pipeline to deploy new versions.
 resource "google_project_iam_member" "cloudbuild_compute_admin" {
-  project = local.project_id
+  project = var.project_id
   role    = "roles/compute.instanceAdmin.v1"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 }
