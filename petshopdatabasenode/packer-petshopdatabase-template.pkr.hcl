@@ -77,15 +77,9 @@ build {
       "ROOT_PASSWORD=\\$(gcloud secrets versions access latest --secret=\"petshop-db-root-credentials\" --project=\"\\$PROJECT_ID\")",
       "while ! mysqladmin ping --silent; do echo 'Waiting for MySQL...'; sleep 2; done",
       "mysql -u root <<-MYSQL_SCRIPT",
-      "CREATE USER '\\${DB_USERNAME}'@'%' IDENTIFIED BY '\\${DB_PASSWORD}';",
-      "GRANT ALL PRIVILEGES ON *.* TO '\\${DB_USERNAME}'@'%' WITH GRANT OPTION;",
-      "ALTER USER 'root'@'localhost' IDENTIFIED BY '\\${ROOT_PASSWORD}';",
-      "CREATE USER '\\${DB_USERNAME}'@'%' IDENTIFIED BY '\\${DB_PASSWORD}';",
-      "GRANT ALL PRIVILEGES ON *.* TO '\\${DB_USERNAME}'@'%' WITH GRANT OPTION;",
-      "ALTER USER 'root'@'localhost' IDENTIFIED BY '\\${ROOT_PASSWORD}';",
-      "FLUSH PRIVILEGES;",
-
-
+      "CREATE USER '$${DB_USERNAME}'@'%' IDENTIFIED BY '$${DB_PASSWORD}';",
+      "GRANT ALL PRIVILEGES ON *.* TO '$${DB_USERNAME}'@'%' WITH GRANT OPTION;",
+      "ALTER USER 'root'@'localhost' IDENTIFIED BY '$${ROOT_PASSWORD}';",
       "FLUSH PRIVILEGES;",
       "MYSQL_SCRIPT",
       "echo 'MySQL users configured successfully.'",
