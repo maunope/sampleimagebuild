@@ -52,11 +52,11 @@ build {
     inline = [
       "echo 'Waiting for MySQL to become ready...'",
       "sleep 15",
-      "# MODIFIED: Create petshop database and products table",
-      "sudo mysql -u root -proot -e 'CREATE DATABASE petshop;'",
-      "sudo mysql -u root -proot -e 'USE petshop; CREATE TABLE products (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255));'",
-      "sudo mysql -u root -proot -e \"USE petshop; INSERT INTO products (name) VALUES ('Golden Retriever'), ('Siamese Cat'), ('Parrot'), ('Goldfish'), ('Hamster'), ('Canary'), ('Iguana'), ('Ferret'), ('Rabbit'), ('Turtle');\"",
-      "echo 'Petshop database and table created successfully.'",
+      "# CORRECTED: Create petshop database and tables without a hardcoded password.",
+      "sudo mysql -u root -e 'CREATE DATABASE IF NOT EXISTS petshop;'",
+      "sudo mysql -u root -e 'USE petshop; CREATE TABLE IF NOT EXISTS products (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255));'",
+      "sudo mysql -u root -e \"USE petshop; INSERT INTO products (name) VALUES ('Golden Retriever'), ('Siamese Cat'), ('Parrot'), ('Goldfish'), ('Hamster'), ('Canary'), ('Iguana'), ('Ferret'), ('Rabbit'), ('Turtle');\"",
+      "echo 'Petshop database, table, and seed data created successfully.'",
       "touch /tmp/3.txt"
     ]
   }
