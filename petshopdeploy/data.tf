@@ -11,10 +11,10 @@ data "terraform_remote_state" "foundation" {
 # Data sources for compute images remain here.
 data "google_compute_image" "latest_petshop_db_image" {
   family  = "petshopdatabasenode-family"
-  project = "mnosedademo"
+  project = var.project_id
 }
 
 data "google_compute_image" "latest_petshop_node_image" {
   family  = "petshopnode-family"
-  project = "mnosedademo"
+  project = var.project_id
 }

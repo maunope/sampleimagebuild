@@ -38,6 +38,12 @@ variable "region" {
   default     = "europe-west4"
 }
 
+variable "db_username" {
+  description = "The username for the Pet Shop database."
+  type        = string
+  default     = "petshopuser"
+}
+
 locals {
   github_owner                     = "maunope"
   github_repo                      = "sampleimagebuild"
@@ -469,7 +475,7 @@ resource "google_cloudbuild_trigger" "terraform_apply_trigger" {
   substitutions = {
     _PROJECT_ID  = var.project_id
     _REGION      = var.region
-    _DB_USERNAME = "petshopuser"
+    _DB_USERNAME = var.db_username
   }
 
   depends_on = [
@@ -499,8 +505,8 @@ resource "google_cloudbuild_trigger" "terraform_apply_foundation_trigger" {
   }
 
   substitutions = {
-    _PROJECT_ID = "mnosedademo"
-    _REGION     = "europe-west4"
+    _PROJECT_ID = var.project_id
+    _REGION     = var.region
   }
 
   # ADDED: Require manual approval before this trigger can execute.
