@@ -10,3 +10,4 @@ do.sh
 .DS_Store
 .DS_Store
 pipelinestemp/main.tf
+pipelinestemp/.terraform.tfstate.lock.info
