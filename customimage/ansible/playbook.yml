@@ -3,7 +3,6 @@
   name: Harden Debian Image
   become: yes
   vars:
-    # Set this to prevent interpreter discovery warnings.
     ansible_python_interpreter: /usr/bin/python3
   tasks:
     - name: Wait for system to become ready (Initial OS boot)
@@ -11,13 +10,14 @@
         timeout: 60
       delegate_to: localhost
 
-    - name: Wait for apt/dpkg to release the lock (Wait up to 10 minutes)
-      ansible.builtin.wait_for:
-        path: /var/lib/dpkg/lock-frontend
-        state: absent
-        timeout: 600 # 👈 Set to 600 seconds (10 minutes) as requested
-        msg: "APT lock held for too long. Increase the timeout if this error persists."
-      
+    - name: Stop unattended-upgrades service to release apt lock
+      # This immediately stops the service that is most likely holding the lock
+      ansible.builtin.service:
+        name: unattended-upgrades
+        state: stopped
+      # Ignore errors in case the service hasn't fully started or is not installed
+      ignore_errors: yes 
+
     - name: Ensure apt locks are completely cleared (Cleanup any remaining stale lock files)
       ansible.builtin.shell: |
         rm -f /var/lib/dpkg/lock-frontend
@@ -32,8 +32,7 @@
         name: jq
         state: present
         update_cache: yes
-        # Secondary defense: Instructs the apt module to retry for 2 minutes if the lock is briefly acquired.
-        lock_timeout: 120 
+        lock_timeout: 120 # Still useful for brief, unpredictable lock acquisitions
       
     - name: Download Google Cloud Ops Agent install script
       get_url:
@@ -45,6 +44,9 @@
       command: /tmp/add-google-cloud-ops-agent-repo.sh --also-install
       args:
         creates: /etc/google-cloud-ops-agent/config.yaml
+
+    # You may want to restart unattended-upgrades here if it is critical, 
+    # but for an image build, leaving it stopped is generally fine as it will restart on next boot.
 
     - name: Set ulimit permanently for all users
       copy:
