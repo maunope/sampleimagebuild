@@ -1,24 +1,43 @@
 ---
 - hosts: all
-  name: Harden Debian Image (Final, Stable Version)
+  name: Harden Debian Image (Final, Shell Workaround)
   become: yes
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    # 1. REMOVE the "Wait for system to become ready" task (handled by Packer)
+    - name: Wait for system to become ready (Initial OS boot)
+      wait_for:
+        timeout: 60
+      delegate_to: localhost
 
-    # 2. REMOVE the "Stop unattended-upgrades" task (it fails due to systemd issues)
-
-    # 3. REMOVE the "Ensure apt locks are completely cleared" task (apt will clear it if no process holds it)
-
-    - name: Update apt cache and install jq
-      apt:
-        name: jq
-        state: present
-        update_cache: yes
-        # Keep lock_timeout as the only defense against brief lock acquisition
-        lock_timeout: 120 
-      
+    - name: Robustly wait for apt lock to be released and install jq
+      ansible.builtin.shell: |
+        # Wait loop: Check for actively held lock files using lsof every 10 seconds.
+        # This is more reliable than just checking for file existence.
+        MAX_RETRIES=60
+        SLEEP_TIME=10
+        RETRIES=0
+        
+        # Check if the primary dpkg and apt lock files are held by an active process
+        while (lsof /var/lib/dpkg/lock-frontend || lsof /var/lib/dpkg/lock || lsof /var/lib/apt/lists/lock) && [ $RETRIES -lt $MAX_RETRIES ]; do
+          echo "Waiting for apt/dpkg lock to be released by background process..."
+          sleep $SLEEP_TIME
+          RETRIES=$((RETRIES + 1))
+        done
+        
+        # FINAL SAFEGUARD: Force-clear any remaining stale lock files after waiting
+        if [ $RETRIES -eq $MAX_RETRIES ]; then
+            echo "WARN: Lock persisted after 10 minutes. Forcing lock clear."
+        fi
+        rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
+        
+        # Run the update command using apt-get (simple shell command)
+        apt-get update
+        apt-get install -y jq
+      args:
+        # Prevents this task from running again if the build is resumed or run on a complete image
+        creates: /usr/bin/jq
+        
     - name: Download Google Cloud Ops Agent install script
       get_url:
         url: https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
