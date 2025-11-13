@@ -67,8 +67,8 @@ build {
   provisioner "shell" {
     inline = [
       "sudo apt-get update && sudo apt-get install -y python3",
-      "# Grant packer user sudo privileges for Ansible",
-      "sudo adduser packer sudo"
+      "# Grant packer user passwordless sudo privileges for Ansible",
+      "echo 'packer ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/packer"
     ]
   }
 
