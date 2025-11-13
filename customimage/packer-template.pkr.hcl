@@ -66,11 +66,13 @@ build {
   # First, install python, required for the ansible provisioner.
   provisioner "shell" {
     inline = [
-      "# Wait for cloud-init to finish and release apt locks",
-      "while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo 'Waiting for apt lock...'; sleep 5; done",
-      "# Mask the service to prevent it from ever starting",
-      "sudo systemctl mask unattended-upgrades.service",
-      "sudo apt-get update -y && sudo apt-get install -y python3",
+      "# Wait for any automatic apt process to finish",
+      "while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do echo 'Waiting for apt lock...'; sleep 10; done",
+      "# Forcefully remove the package that causes the lock",
+      "sudo apt-get -y remove unattended-upgrades",
+      "# Now, safely update and install python",
+      "sudo apt-get update -y",
+      "sudo apt-get install -y python3",
       "# Grant packer user passwordless sudo privileges for Ansible",
       "echo 'packer ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/packer"
     ]
