@@ -12,12 +12,12 @@
       delegate_to: localhost
 
     - name: Wait for apt-get lock to be released
-      shell: "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done"
+      shell: >
+        while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 ; do
+          sleep 5
+        done
       become: yes
       changed_when: false
-      failed_when: false
-      register: result
-      until: result.rc == 0
 
     - name: Update apt cache and install jq
       apt:
