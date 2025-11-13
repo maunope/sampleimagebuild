@@ -71,6 +71,6 @@ build {
   }
 
   provisioner "ansible" {
-    playbook_file = "./customimage/ansible/playbook.yml"
+    playbook_file = "./customimage/playbook.yml"
   }
 }
