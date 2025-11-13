@@ -11,22 +11,6 @@
         timeout: 30
       delegate_to: localhost
 
-    - name: Stop and disable unattended-upgrades to prevent apt lock
-      shell: |
-        systemctl stop unattended-upgrades.service
-        systemctl disable unattended-upgrades.service
-      become: yes
-      ignore_errors: yes # Ignore if the service doesn't exist
-      changed_when: false
-
-    - name: Wait for apt-get lock to be released
-      shell: >
-        while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 ; do
-          sleep 5
-        done
-      become: yes
-      changed_when: false
-
     - name: Update apt cache and install jq
       apt:
         name: jq
