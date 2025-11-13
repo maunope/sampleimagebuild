@@ -12,12 +12,12 @@
       delegate_to: localhost
 
     - name: Stop and disable unattended-upgrades to prevent apt lock
-      service:
-        name: unattended-upgrades
-        state: stopped
-        enabled: no
+      shell: |
+        systemctl stop unattended-upgrades.service
+        systemctl disable unattended-upgrades.service
       become: yes
       ignore_errors: yes # Ignore if the service doesn't exist
+      changed_when: false
 
     - name: Wait for apt-get lock to be released
       shell: >
