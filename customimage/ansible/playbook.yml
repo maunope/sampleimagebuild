@@ -6,13 +6,19 @@
     # Set this to prevent interpreter discovery warnings.
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - name: Wait for system to become ready
+    - name: Wait for system to become ready (Initial OS boot)
       wait_for:
-        # Increased wait time for better reliability in a cloud environment
-        timeout: 60 
+        timeout: 60
       delegate_to: localhost
 
-    - name: Ensure apt locks are cleared (Safeguard against stale locks)
+    - name: Wait for apt/dpkg to release the lock (Wait up to 10 minutes)
+      ansible.builtin.wait_for:
+        path: /var/lib/dpkg/lock-frontend
+        state: absent
+        timeout: 600 # 👈 Set to 600 seconds (10 minutes) as requested
+        msg: "APT lock held for too long. Increase the timeout if this error persists."
+      
+    - name: Ensure apt locks are completely cleared (Cleanup any remaining stale lock files)
       ansible.builtin.shell: |
         rm -f /var/lib/dpkg/lock-frontend
         rm -f /var/lib/dpkg/lock
@@ -26,9 +32,8 @@
         name: jq
         state: present
         update_cache: yes
-        # ADDED: Wait up to 120 seconds (2 minutes) for the lock to be released 
-        # by any concurrent process (like GCE's initial setup).
-        lock_timeout: 120
+        # Secondary defense: Instructs the apt module to retry for 2 minutes if the lock is briefly acquired.
+        lock_timeout: 120 
       
     - name: Download Google Cloud Ops Agent install script
       get_url:
