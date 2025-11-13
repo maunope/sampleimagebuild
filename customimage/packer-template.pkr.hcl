@@ -66,7 +66,9 @@ build {
   # First, install python, required for the ansible provisioner.
   provisioner "shell" {
     inline = [
-      "sudo apt-get update && sudo apt-get install -y python3"
+      "sudo apt-get update && sudo apt-get install -y python3",
+      "# Grant packer user sudo privileges for Ansible",
+      "sudo adduser packer sudo"
     ]
   }
 

@@ -1,10 +1,10 @@
 ---
 - hosts: all
-  vars:
-    ansible_python_interpreter: /usr/bin/python3.9
-- name: Harden Debian Image
-  hosts: all
+  name: Harden Debian Image
   become: yes
+  vars:
+    # Set this to prevent interpreter discovery warnings.
+    ansible_python_interpreter: /usr/bin/python3
   tasks:
     - name: Wait for system to become ready
       wait_for:
