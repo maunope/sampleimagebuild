@@ -1,38 +1,23 @@
 ---
 - hosts: all
-  name: Harden Debian Image
+  name: Harden Debian Image (Final, Stable Version)
   become: yes
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - name: Wait for system to become ready (Initial OS boot)
-      wait_for:
-        timeout: 60
-      delegate_to: localhost
+    # 1. REMOVE the "Wait for system to become ready" task (handled by Packer)
 
-    - name: Stop unattended-upgrades service to release apt lock
-      # This immediately stops the service that is most likely holding the lock
-      ansible.builtin.service:
-        name: unattended-upgrades
-        state: stopped
-      # Ignore errors in case the service hasn't fully started or is not installed
-      ignore_errors: yes 
+    # 2. REMOVE the "Stop unattended-upgrades" task (it fails due to systemd issues)
 
-    - name: Ensure apt locks are completely cleared (Cleanup any remaining stale lock files)
-      ansible.builtin.shell: |
-        rm -f /var/lib/dpkg/lock-frontend
-        rm -f /var/lib/dpkg/lock
-        rm -f /var/cache/apt/archives/lock
-      args:
-        warn: false
-      failed_when: false
+    # 3. REMOVE the "Ensure apt locks are completely cleared" task (apt will clear it if no process holds it)
 
     - name: Update apt cache and install jq
       apt:
         name: jq
         state: present
         update_cache: yes
-        lock_timeout: 120 # Still useful for brief, unpredictable lock acquisitions
+        # Keep lock_timeout as the only defense against brief lock acquisition
+        lock_timeout: 120 
       
     - name: Download Google Cloud Ops Agent install script
       get_url:
@@ -44,9 +29,6 @@
       command: /tmp/add-google-cloud-ops-agent-repo.sh --also-install
       args:
         creates: /etc/google-cloud-ops-agent/config.yaml
-
-    # You may want to restart unattended-upgrades here if it is critical, 
-    # but for an image build, leaving it stopped is generally fine as it will restart on next boot.
 
     - name: Set ulimit permanently for all users
       copy:
