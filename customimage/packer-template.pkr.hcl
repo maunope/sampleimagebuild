@@ -59,19 +59,14 @@ build {
   sources = ["source.googlecompute.debian-image"]
 
   # Provisioners are used to install software or configure the machine.
+  # First, install python, required for the ansible provisioner.
   provisioner "shell" {
     inline = [
-      "echo 'Waiting for system to become ready...'",
-      "sleep 30",
-      "sudo apt-get update -y",
-      "# MODIFIED: Install Google Cloud Ops Agent",
-      "curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh",
-      "sudo bash add-google-cloud-ops-agent-repo.sh --also-install",
-      "# MODIFIED: Set ulimit permanently for all users",
-      "echo '* soft nofile 64000' | sudo tee /etc/security/limits.d/99-packer.conf",
-      "echo '* hard nofile 64000' | sudo tee -a /etc/security/limits.d/99-packer.conf",
-      "# CRITICAL FIX: Install jq, which is required by the boot script to parse secrets.",
-      "sudo apt-get install -y jq"
+      "sudo apt-get update && sudo apt-get install -y python3"
     ]
+  }
+
+  provisioner "ansible" {
+    playbook_file = "./customimage/ansible/playbook.yml"
   }
 }

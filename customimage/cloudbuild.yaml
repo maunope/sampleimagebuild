@@ -2,7 +2,15 @@
 
 
 steps:
-  # Step 1: Initialize Packer plugins
+  # Step 1: Install Ansible
+  - id: 'Install Ansible'
+    name: 'alpine'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - 'apk add --no-cache ansible'
+
+  # Step 2: Initialize Packer plugins
   # Use the official HashiCorp Packer image. It comes with Packer pre-installed.
   # 'packer init' will download the required plugins based on packer-template.pkr.hcl.
   - id: 'Packer Init'
@@ -10,10 +18,11 @@ steps:
     entrypoint: 'packer'
     args:
       - 'init'
-      - 'packer-template.pkr.hcl'
+      - '.'
     dir: 'customimage' # MODIFIED: Set the working directory to where the packer file is.
+    waitFor: ['Install Ansible']
 
-  # Step 2: Build the Image
+  # Step 3: Build the Image
   # This step uses the same official Packer image. It will find the initialized
   # plugins from the previous step's shared workspace.
   - id: 'Packer Build'
@@ -28,11 +37,11 @@ steps:
       - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
       - '-var'
       - 'zone=${_ZONE}'
-      - 'packer-template.pkr.hcl'
+      - '.'
     dir: 'customimage' # MODIFIED: Set the working directory to where the packer file is.
     waitFor: ['Packer Init'] # Ensure initialization is complete
 
-  # ADDED: Step 3: Clean up old images in the family, keeping the last 3.
+  # Step 4: Clean up old images in the family, keeping the last 3.
   - id: 'Clean up old images'
     name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
     entrypoint: 'bash'
