@@ -11,6 +11,15 @@
         timeout: 30
       delegate_to: localhost
 
+    - name: Ensure apt locks are cleared
+      ansible.builtin.shell: |
+        rm -f /var/lib/dpkg/lock-frontend
+        rm -f /var/lib/dpkg/lock
+        rm -f /var/cache/apt/archives/lock
+      args:
+        warn: false
+      failed_when: false
+
     - name: Update apt cache and install jq
       apt:
         name: jq
