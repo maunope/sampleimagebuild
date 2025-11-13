@@ -57,7 +57,7 @@ steps:
           echo "$$IMAGES_TO_DELETE"
           echo "$$IMAGES_TO_DELETE" | xargs -r gcloud compute images delete --project=${_GCP_PROJECT} --quiet
         fi
-    waitFor: ['Packer Ansible Build']
+    waitFor: ['Packer Build']
 
 # Specify logging options (This is fine)
 options:
