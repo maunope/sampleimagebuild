@@ -12,7 +12,7 @@ steps:
       - '-c'
       - |
         # The hashicorp/packer image is based on Alpine Linux, so we use apk.
-        apk add --no-cache ansible
+        apk add --no-cache ansible openssh-client
 
         # Verify ansible is installed and in the path
         ansible-playbook --version
