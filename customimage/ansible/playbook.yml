@@ -8,10 +8,11 @@
   tasks:
     - name: Wait for system to become ready
       wait_for:
-        timeout: 30
+        # Increased wait time for better reliability in a cloud environment
+        timeout: 60 
       delegate_to: localhost
 
-    - name: Ensure apt locks are cleared
+    - name: Ensure apt locks are cleared (Safeguard against stale locks)
       ansible.builtin.shell: |
         rm -f /var/lib/dpkg/lock-frontend
         rm -f /var/lib/dpkg/lock
@@ -25,7 +26,10 @@
         name: jq
         state: present
         update_cache: yes
-
+        # ADDED: Wait up to 120 seconds (2 minutes) for the lock to be released 
+        # by any concurrent process (like GCE's initial setup).
+        lock_timeout: 120
+      
     - name: Download Google Cloud Ops Agent install script
       get_url:
         url: https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
