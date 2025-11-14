@@ -7,6 +7,14 @@
     # Explicitly set the python interpreter path for Ansible
     ansible_python_interpreter: /usr/bin/python3
   tasks:
+    - name: "DEBUG - Check which user is running this playbook"
+      ansible.builtin.command: whoami
+      register: whoami_result
+
+    - name: "DEBUG - Print the username"
+      ansible.builtin.debug:
+        msg: "This playbook is being executed by the user: {{ whoami_result.stdout }}"
+
     - name: Wait for system to become ready (Initial OS boot)
       ansible.builtin.wait_for:
         timeout: 60
