@@ -1,79 +1,38 @@
+---
 - hosts: all
-  name: Harden Debian Image (Final, Shell Workaround)
+  name: Harden Debian Image (Final, Functional Version)
+  # Ensure all subsequent commands run with root privileges
   become: yes
   vars:
+    # Explicitly set the python interpreter path for Ansible
     ansible_python_interpreter: /usr/bin/python3
   tasks:
     - name: Wait for system to become ready (Initial OS boot)
       ansible.builtin.wait_for:
         timeout: 60
+      # Run this task on the Ansible controller (localhost) while the target system boots
       delegate_to: localhost
 
-    - name: Robustly wait for apt lock to be released and install jq (MAXIMUM Logging)
+    - name: Robustly install jq and update system
       ansible.builtin.shell: |
-        # Log the User ID and Group ID of the process running this command (root)
-        echo "=========================================================================="
-        echo "TASK START: APT Lock Wait and jq Install"
-        # Use simple commands whose output is guaranteed to be printed
-        echo "Current User Info:"
-        id
-        echo "--------------------------------------------------------------------------"
-        
-        MAX_RETRIES=60
-        SLEEP_TIME=10
-        RETRIES=0
-        
+        # Define the lock files to check
         LOCK_FILES="/var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock"
-        
-        # Start loop to check for active lock-holding processes
-        while [ $RETRIES -lt $MAX_RETRIES ]; do
-          
-          # 1. Run lsof and redirect all output (stdout and stderr) to a temporary file.
-          # We must use a file here because simple echoing of lsof output is what failed last time.
-          lsof $LOCK_FILES &> /tmp/lsof_check_log.txt
-          LSOF_EXIT_CODE=$?
-          
-          # 2. Check the exit code of lsof
-          if [ $LSOF_EXIT_CODE -eq 0 ]; then
-            
-            # Lock is FOUND. Log the current status and the contents of the log file.
-            echo "Waiting for apt/dpkg lock to be released (Retry $((RETRIES + 1))/$MAX_RETRIES)..."
-            echo "--- LSOF Output (Process holding the lock) ---"
-            
-            # 3. Use 'cat' to force the file content directly to stdout
-            cat /tmp/lsof_check_log.txt
-            
-            echo "----------------------------------------------"
-            
-            # Increment retry count and sleep
-            sleep $SLEEP_TIME
-            RETRIES=$((RETRIES + 1))
-          else
-            # Exit code is not 0 (meaning no process is holding the lock files)
-            echo "SUCCESS: Lock released after $RETRIES retries."
-            break # Exit the while loop
-          fi
-          
-          # Clean up the file on every loop
-          rm -f /tmp/lsof_check_log.txt
-          
-          # Handle timeout failure
-          if [ $RETRIES -eq $MAX_RETRIES ]; then
-            echo "ERROR: Lock persisted after 10 minutes. Proceeding with force clear."
-          fi
-          
+
+        # Simple 10-minute wait loop for system background tasks to finish
+        RETRIES=0
+        while lsof $LOCK_FILES && [ $RETRIES -lt 60 ]; do
+          sleep 10
+          RETRIES=$((RETRIES + 1))
         done
-        
-        # FINAL SAFEGUARD: Force removal of common lock files (stale lock cleanup)
-        echo "Forcing lock clear for package manager files."
+
+        # FINAL SAFEGUARD: Force removal of common lock files
         rm -f $LOCK_FILES
         
         # Run the update and install commands
         apt-get update
         apt-get install -y jq
-        echo "=========================================================================="
-
       args:
+        # Prevents this task from running again if jq is already installed
         creates: /usr/bin/jq
         
     - name: Download Google Cloud Ops Agent install script
@@ -82,9 +41,28 @@
         dest: /tmp/add-google-cloud-ops-agent-repo.sh
         mode: '0755'
 
-    - name: Install Google Cloud Ops Agent
-      ansible.builtin.command: /tmp/add-google-cloud-ops-agent-repo.sh --also-install
+    # THE CRITICAL FIX: The lock wait logic is now applied immediately before
+    # the command that calls the APT package manager inside the installer script.
+    - name: Robustly Install Google Cloud Ops Agent
+      ansible.builtin.shell: |
+        # Define the lock files to check
+        LOCK_FILES="/var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock"
+        
+        # New, targeted wait loop for the Ops Agent installer
+        RETRIES=0
+        while lsof $LOCK_FILES && [ $RETRIES -lt 60 ]; do
+          sleep 10
+          RETRIES=$((RETRIES + 1))
+        done
+        
+        # Clear locks regardless of whether the wait succeeded or timed out
+        rm -f $LOCK_FILES
+        
+        # Execute the Ops Agent installation command that requires APT lock
+        /tmp/add-google-cloud-ops-agent-repo.sh --also-install
+        
       args:
+        # Prevents this task from running again if the agent is already configured
         creates: /etc/google-cloud-ops-agent/config.yaml
 
     - name: Set ulimit permanently for all users
