@@ -46,21 +46,20 @@
     - name: Robustly Install Google Cloud Ops Agent
       ansible.builtin.shell: |
         # Define the lock files to check
-    #    LOCK_FILES="/var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock"
+        # LOCK_FILES="/var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock"
         
         # New, targeted wait loop for the Ops Agent installer
-     #   RETRIES=0
-      #  while lsof $LOCK_FILES && [ $RETRIES -lt 60 ]; do
-       #   sleep 10
-        #  RETRIES=$((RETRIES + 1))
-       # done
+        # RETRIES=0
+        # while lsof $LOCK_FILES && [ $RETRIES -lt 60 ]; do
+        #   sleep 10
+        #   RETRIES=$((RETRIES + 1))
+        # done
         
         # Clear locks regardless of whether the wait succeeded or timed out
-       # rm -f $LOCK_FILES
+        # rm -f $LOCK_FILES
         
         # Execute the Ops Agent installation command that requires APT lock
         /tmp/add-google-cloud-ops-agent-repo.sh --also-install
-        
       args:
         # Prevents this task from running again if the agent is already configured
         creates: /etc/google-cloud-ops-agent/config.yaml
