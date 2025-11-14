@@ -6,6 +6,10 @@
   vars:
     # Explicitly set the python interpreter path for Ansible
     ansible_python_interpreter: /usr/bin/python3
+  roles:
+    - role: googlecloudplatform.google_cloud_ops_agents
+      vars:
+        agent_type: ops-agent
   tasks:
     - name: Wait for system to become ready (Initial OS boot)
       ansible.builtin.wait_for:
@@ -13,56 +17,16 @@
       # Run this task on the Ansible controller (localhost) while the target system boots
       delegate_to: localhost
 
-    - name: Robustly install jq and update system
-      ansible.builtin.shell: |
-        # Define the lock files to check
-        LOCK_FILES="/var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock"
-
-        # Simple 10-minute wait loop for system background tasks to finish
-        RETRIES=0
-        while lsof $LOCK_FILES && [ $RETRIES -lt 60 ]; do
-          sleep 10
-          RETRIES=$((RETRIES + 1))
-        done
-
-        # FINAL SAFEGUARD: Force removal of common lock files
-        rm -f $LOCK_FILES
-        
-        # Run the update and install commands
-        apt-get update
-        apt-get install -y jq
-      args:
-        # Prevents this task from running again if jq is already installed
-        creates: /usr/bin/jq
-        
-    - name: Download Google Cloud Ops Agent install script
-      ansible.builtin.get_url:
-        url: https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
-        dest: /tmp/add-google-cloud-ops-agent-repo.sh
-        mode: '0755'
-
-    # THE CRITICAL FIX: The lock wait logic is now applied immediately before
-    # the command that calls the APT package manager inside the installer script.
-    - name: Robustly Install Google Cloud Ops Agent
-      ansible.builtin.shell: |
-        # Define the lock files to check
-        # LOCK_FILES="/var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock"
-        
-        # New, targeted wait loop for the Ops Agent installer
-        # RETRIES=0
-        # while lsof $LOCK_FILES && [ $RETRIES -lt 60 ]; do
-        #   sleep 10
-        #   RETRIES=$((RETRIES + 1))
-        # done
-        
-        # Clear locks regardless of whether the wait succeeded or timed out
-        # rm -f $LOCK_FILES
-        
-        # Execute the Ops Agent installation command that requires APT lock
-        /tmp/add-google-cloud-ops-agent-repo.sh --also-install
-      args:
-        # Prevents this task from running again if the agent is already configured
-        creates: /etc/google-cloud-ops-agent/config.yaml
+    - name: Update apt cache and install jq
+      ansible.builtin.apt:
+        name: jq
+        state: present
+        update_cache: yes
+      # Retry this task if it fails (e.g. due to apt locks)
+      retries: 30
+      delay: 10
+      register: apt_install_result
+      until: apt_install_result is succeeded
 
     - name: Set ulimit permanently for all users
       ansible.builtin.copy:
