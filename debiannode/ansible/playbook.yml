@@ -26,11 +26,16 @@
         cmd: "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 ; do sleep 5 ; done"
       changed_when: false
 
+    - name: Add Google Cloud Apt signing key via shell
+      ansible.builtin.shell:
+        cmd: "curl -sS https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo tee /etc/apt/trusted.gpg.d/google-cloud.gpg > /dev/null"
+      args:
+        creates: /etc/apt/trusted.gpg.d/google-cloud.gpg
+
     - name: Add Google Cloud Ops Agent repository via shell
       ansible.builtin.shell:
-        cmd: "echo 'deb https://packages.cloud.google.com/apt google-cloud-ops-agent-{{ ansible_distribution_release | lower }}-all main' > /etc/apt/sources.list.d/google-cloud-ops-agent.list"
+        cmd: "echo 'deb https://packages.cloud.google.com/apt google-cloud-ops-agent-{{ ansible_distribution_release | lower }}-all main' | sudo tee /etc/apt/sources.list.d/google-cloud-ops-agent.list"
       args:
-        # This makes the task idempotent
         creates: /etc/apt/sources.list.d/google-cloud-ops-agent.list
 
     - name: Install Ops Agent and additional packages
