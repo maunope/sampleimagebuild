@@ -1,19 +1,16 @@
 ---
 - hosts: all
   name: Harden Debian Image (Final, Shell Workaround)
-  # Ensure all subsequent commands run with root privileges
   become: yes
   vars:
-    # Explicitly set the python interpreter path for Ansible
     ansible_python_interpreter: /usr/bin/python3
   tasks:
     - name: Wait for system to become ready (Initial OS boot)
       ansible.builtin.wait_for:
         timeout: 60
-      # Run this task on the Ansible controller (localhost) while the target system boots
       delegate_to: localhost
 
-    - name: Robustly wait for apt lock to be released and install jq (with logging)
+    - name: Robustly wait for apt lock to be released and install jq (FIXED Logging)
       ansible.builtin.shell: |
         # Log the User ID and Group ID of the process running this command (root)
         echo "=========================================================================="
@@ -21,39 +18,46 @@
         echo "Running as: $(id)"
         echo "--------------------------------------------------------------------------"
         
-        # Wait loop: Check for actively held lock files using lsof every 10 seconds.
         MAX_RETRIES=60
         SLEEP_TIME=10
         RETRIES=0
         
-        # Define the lock files to check
-        LOCK_FILES="/var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock"
+        LOCK_FILES="/var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock"
         
-        # Check if the lock files are held by an active process, capturing all output to a temp file
-        while lsof $LOCK_FILES &> /tmp/lsof_output.log && [ $RETRIES -lt $MAX_RETRIES ]; do
-          echo "Waiting for apt/dpkg lock to be released (Retry $((RETRIES + 1))/$MAX_RETRIES)..."
+        # Start loop to check for active lock-holding processes
+        while [ $RETRIES -lt $MAX_RETRIES ]; do
           
-          # Echo the result of lsof (both stdout and stderr were captured in the file)
-          echo "--- LSOF Output (Process holding the lock) ---"
-          cat /tmp/lsof_output.log
-          echo "----------------------------------------------"
+          # Run lsof, capturing stdout and stderr into the LSOF_OUTPUT variable
+          LSOF_OUTPUT=$(lsof $LOCK_FILES 2>&1)
+          LSOF_EXIT_CODE=$?
           
-          sleep $SLEEP_TIME
-          RETRIES=$((RETRIES + 1))
+          # Check if the exit code indicates locks were found (lsof returns 0 when files are open)
+          if [ $LSOF_EXIT_CODE -eq 0 ]; then
+            
+            echo "Waiting for apt/dpkg lock to be released (Retry $((RETRIES + 1))/$MAX_RETRIES)..."
+            echo "--- LSOF Output (Process holding the lock) ---"
+            echo "$LSOF_OUTPUT"
+            echo "----------------------------------------------"
+            
+            sleep $SLEEP_TIME
+            RETRIES=$((RETRIES + 1))
+          else
+            # Exit code is not 0 (meaning no process is holding the lock files)
+            echo "SUCCESS: Lock released after $RETRIES retries."
+            break # Exit the while loop
+          fi
+          
+          # Handle timeout failure
+          if [ $RETRIES -eq $MAX_RETRIES ]; then
+            echo "ERROR: Lock persisted after 10 minutes."
+          fi
+          
         done
         
-        # Cleanup the temporary lsof file
-        rm -f /tmp/lsof_output.log
-        
-        # FINAL SAFEGUARD: Force-clear any remaining stale lock files after waiting
-        if [ $RETRIES -eq $MAX_RETRIES ]; then
-            echo "WARN: Lock persisted after 10 minutes. Forcing lock clear."
-        else
-            echo "SUCCESS: Lock released after $RETRIES retries."
-        fi
-        
-        # Force removal of common lock files just in case of a non-lsof-held stale lock
-        rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
+        # FINAL SAFEGUARD: Force removal of common lock files (stale lock cleanup)
+        # This runs whether the wait succeeded or failed.
+        echo "Forcing lock clear for /var/lib/dpkg/lock* and /var/cache/apt/archives/lock"
+        rm -f $LOCK_FILES
         
         # Run the update and install commands
         apt-get update
@@ -61,7 +65,6 @@
         echo "=========================================================================="
 
       args:
-        # Prevents this task from running again if jq is already installed
         creates: /usr/bin/jq
         
     - name: Download Google Cloud Ops Agent install script
@@ -73,7 +76,6 @@
     - name: Install Google Cloud Ops Agent
       ansible.builtin.command: /tmp/add-google-cloud-ops-agent-repo.sh --also-install
       args:
-        # Prevents this task from running again if the agent is already configured
         creates: /etc/google-cloud-ops-agent/config.yaml
 
     - name: Set ulimit permanently for all users
