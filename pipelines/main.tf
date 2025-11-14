@@ -286,7 +286,7 @@ resource "google_organization_iam_member" "browser_for_lucace_on_org" {
 resource "google_cloudbuild_trigger" "debian_node_trigger" {
   project         = var.project_id
   location        = var.region
-  name            = "packer-debian-builder-on-main-commit"
+  name            = "packer-debian-builder-on-commit"
   description     = "Triggers build on commit to main branch of ${local.github_repo}"
   service_account = google_service_account.packer_builder_sa.id
 

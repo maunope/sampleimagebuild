@@ -1,56 +1,83 @@
 ---
 - hosts: all
   name: Harden Debian Image (Final, Shell Workaround)
+  # Ensure all subsequent commands run with root privileges
   become: yes
   vars:
+    # Explicitly set the python interpreter path for Ansible
     ansible_python_interpreter: /usr/bin/python3
   tasks:
     - name: Wait for system to become ready (Initial OS boot)
-      wait_for:
+      ansible.builtin.wait_for:
         timeout: 60
+      # Run this task on the Ansible controller (localhost) while the target system boots
       delegate_to: localhost
 
-    - name: Robustly wait for apt lock to be released and install jq
+    - name: Robustly wait for apt lock to be released and install jq (with logging)
       ansible.builtin.shell: |
+        # Log the User ID and Group ID of the process running this command (root)
+        echo "=========================================================================="
+        echo "TASK START: APT Lock Wait and jq Install"
+        echo "Running as: $(id)"
+        echo "--------------------------------------------------------------------------"
+        
         # Wait loop: Check for actively held lock files using lsof every 10 seconds.
-        # This is more reliable than just checking for file existence.
         MAX_RETRIES=60
         SLEEP_TIME=10
         RETRIES=0
         
-        # Check if the primary dpkg and apt lock files are held by an active process
-        while (lsof /var/lib/dpkg/lock-frontend || lsof /var/lib/dpkg/lock || lsof /var/lib/apt/lists/lock) && [ $RETRIES -lt $MAX_RETRIES ]; do
-          echo "Waiting for apt/dpkg lock to be released by background process..."
+        # Define the lock files to check
+        LOCK_FILES="/var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock"
+        
+        # Check if the lock files are held by an active process, capturing all output to a temp file
+        while lsof $LOCK_FILES &> /tmp/lsof_output.log && [ $RETRIES -lt $MAX_RETRIES ]; do
+          echo "Waiting for apt/dpkg lock to be released (Retry $((RETRIES + 1))/$MAX_RETRIES)..."
+          
+          # Echo the result of lsof (both stdout and stderr were captured in the file)
+          echo "--- LSOF Output (Process holding the lock) ---"
+          cat /tmp/lsof_output.log
+          echo "----------------------------------------------"
+          
           sleep $SLEEP_TIME
           RETRIES=$((RETRIES + 1))
         done
         
+        # Cleanup the temporary lsof file
+        rm -f /tmp/lsof_output.log
+        
         # FINAL SAFEGUARD: Force-clear any remaining stale lock files after waiting
         if [ $RETRIES -eq $MAX_RETRIES ]; then
             echo "WARN: Lock persisted after 10 minutes. Forcing lock clear."
+        else
+            echo "SUCCESS: Lock released after $RETRIES retries."
         fi
+        
+        # Force removal of common lock files just in case of a non-lsof-held stale lock
         rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
         
-        # Run the update command using apt-get (simple shell command)
+        # Run the update and install commands
         apt-get update
         apt-get install -y jq
+        echo "=========================================================================="
+
       args:
-        # Prevents this task from running again if the build is resumed or run on a complete image
+        # Prevents this task from running again if jq is already installed
         creates: /usr/bin/jq
         
     - name: Download Google Cloud Ops Agent install script
-      get_url:
+      ansible.builtin.get_url:
         url: https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
         dest: /tmp/add-google-cloud-ops-agent-repo.sh
         mode: '0755'
 
     - name: Install Google Cloud Ops Agent
-      command: /tmp/add-google-cloud-ops-agent-repo.sh --also-install
+      ansible.builtin.command: /tmp/add-google-cloud-ops-agent-repo.sh --also-install
       args:
+        # Prevents this task from running again if the agent is already configured
         creates: /etc/google-cloud-ops-agent/config.yaml
 
     - name: Set ulimit permanently for all users
-      copy:
+      ansible.builtin.copy:
         dest: /etc/security/limits.d/99-packer.conf
         content: |
           * soft nofile 64000
