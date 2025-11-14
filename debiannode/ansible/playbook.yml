@@ -38,11 +38,11 @@
       args:
         creates: /etc/apt/sources.list.d/google-cloud-ops-agent.list
 
-    - name: Install Ops Agent and additional packages
-      ansible.builtin.apt:
-        name: ['google-cloud-ops-agent', 'jq']
-        state: present
-        update_cache: yes
+    - name: Install Ops Agent and additional packages via shell
+      ansible.builtin.shell:
+        cmd: "sudo apt-get update && sudo apt-get install -y google-cloud-ops-agent jq"
+      args:
+        creates: /usr/bin/jq # Makes this task idempotent
 
     - name: Set ulimit permanently for all users
       ansible.builtin.copy:
