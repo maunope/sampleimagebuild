@@ -1,15 +1,11 @@
 ---
 - hosts: all
-  name: Harden Debian Image (Final, Functional Version)
+  name: Harden Debian Image
   # Ensure all subsequent commands run with root privileges
   become: yes
   vars:
     # Explicitly set the python interpreter path for Ansible
     ansible_python_interpreter: /usr/bin/python3
-  roles:
-    - role: googlecloudplatform.google_cloud_ops_agents
-      vars:
-        agent_type: ops-agent
   tasks:
     - name: Wait for system to become ready (Initial OS boot)
       ansible.builtin.wait_for:
@@ -17,7 +13,7 @@
       # Run this task on the Ansible controller (localhost) while the target system boots
       delegate_to: localhost
 
-    - name: Update apt cache and install jq
+    - name: Update apt cache and install base packages
       ansible.builtin.apt:
         name: jq
         state: present
@@ -27,6 +23,35 @@
       delay: 10
       register: apt_install_result
       until: apt_install_result is succeeded
+
+    - name: Download Google Cloud Ops Agent install script
+      ansible.builtin.get_url:
+        url: https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+        dest: /tmp/add-google-cloud-ops-agent-repo.sh
+        mode: '0755'
+
+    - name: Add Ops Agent repository and install the agent
+      ansible.builtin.command:
+        cmd: /tmp/add-google-cloud-ops-agent-repo.sh --also-install
+      args:
+        # This task is successful if the agent config exists, meaning it's installed.
+        creates: /etc/google-cloud-ops-agent/config.yaml
+      retries: 5
+      delay: 10
+      register: agent_install_result
+      until: agent_install_result is succeeded
+
+    - name: Harden SSH configuration
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^{{ item.key }}'
+        line: '{{ item.key }} {{ item.value }}'
+        state: present
+        validate: 'sshd -t -f %s'
+      loop:
+        - { key: 'PermitRootLogin', value: 'no' }
+        - { key: 'PasswordAuthentication', value: 'no' }
+      notify: Restart sshd
 
     - name: Set ulimit permanently for all users
       ansible.builtin.copy:
