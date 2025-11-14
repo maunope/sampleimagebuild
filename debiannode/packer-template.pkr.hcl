@@ -50,6 +50,9 @@ source "googlecompute" "debian-image" {
   enable_secure_boot = true
   use_internal_ip    = true
 
+  # ADDED: Disable OS Login to allow standard sudoers file to work.
+  disable_os_login = true
+
   #
   image_name          = var.image_name
   image_family        = "custom-debian-family" # ADDED: Create/use an image family
@@ -73,8 +76,8 @@ build {
       "# Now, safely update and install python",
       "sudo apt-get update -y",
       "sudo apt-get install -y python3",
-      "# Grant the current user passwordless sudo privileges for Ansible",
-      "echo \"$(whoami) ALL=(ALL) NOPASSWD:ALL\" | sudo tee /etc/sudoers.d/ansible"
+      "# Grant the 'packer' user passwordless sudo privileges for Ansible",
+      "echo 'packer ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/packer"
     ]
   }
 
