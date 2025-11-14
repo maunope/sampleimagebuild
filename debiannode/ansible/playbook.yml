@@ -13,33 +13,36 @@
       # Run this task on the Ansible controller (localhost) while the target system boots
       delegate_to: localhost
 
-    - name: Update apt cache and install base packages
+    - name: Wait for apt-daily/unattended-upgrades to finish
+      ansible.builtin.shell:
+        cmd: "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 ; do sleep 5 ; done"
+      changed_when: false
+
+    - name: Add Google Cloud Apt signing key
+      ansible.builtin.get_url:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        dest: /etc/apt/trusted.gpg.d/google-cloud.gpg
+        mode: '0644'
+        force: true
+
+    - name: Add Google Cloud Ops Agent repository
+      ansible.builtin.apt_repository:
+        repo: "deb https://packages.cloud.google.com/apt google-cloud-ops-agent-{{ ansible_distribution_release | lower }}-all main"
+        state: present
+        filename: google-cloud-ops-agent
+
+    - name: Install Ops Agent and additional packages
       ansible.builtin.apt:
-        name: jq
+        name: ['google-cloud-ops-agent', 'jq']
         state: present
         update_cache: yes
-      # Retry this task if it fails (e.g. due to apt locks)
-      retries: 30
-      delay: 10
-      register: apt_install_result
-      until: apt_install_result is succeeded
 
-    - name: Download Google Cloud Ops Agent install script
-      ansible.builtin.get_url:
-        url: https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
-        dest: /tmp/add-google-cloud-ops-agent-repo.sh
-        mode: '0755'
-
-    - name: Add Ops Agent repository and install the agent
-      ansible.builtin.command:
-        cmd: /tmp/add-google-cloud-ops-agent-repo.sh --also-install
-      args:
-        # This task is successful if the agent config exists, meaning it's installed.
-        creates: /etc/google-cloud-ops-agent/config.yaml
-      retries: 5
-      delay: 10
-      register: agent_install_result
-      until: agent_install_result is succeeded
+    - name: Set ulimit permanently for all users
+      ansible.builtin.copy:
+        dest: /etc/security/limits.d/99-packer.conf
+        content: |
+          * soft nofile 64000
+          * hard nofile 64000
 
     - name: Harden SSH configuration
       ansible.builtin.lineinfile:
@@ -53,9 +56,8 @@
         - { key: 'PasswordAuthentication', value: 'no' }
       notify: Restart sshd
 
-    - name: Set ulimit permanently for all users
-      ansible.builtin.copy:
-        dest: /etc/security/limits.d/99-packer.conf
-        content: |
-          * soft nofile 64000
-          * hard nofile 64000
+  handlers:
+    - name: Restart sshd
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
