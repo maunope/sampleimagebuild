@@ -73,8 +73,8 @@ build {
       "# Now, safely update and install python",
       "sudo apt-get update -y",
       "sudo apt-get install -y python3",
-      "# Grant packer user passwordless sudo privileges for Ansible",
-      "echo 'packer ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/packer"
+      "# Grant the current user passwordless sudo privileges for Ansible",
+      "echo \"$(whoami) ALL=(ALL) NOPASSWD:ALL\" | sudo tee /etc/sudoers.d/ansible"
     ]
   }
 

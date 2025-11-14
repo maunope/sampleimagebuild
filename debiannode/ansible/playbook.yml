@@ -27,6 +27,12 @@
         cmd: "while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 ; do sleep 5 ; done"
       changed_when: false
 
+    - name: Add Google Cloud Apt signing key
+      ansible.builtin.get_url:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        dest: /etc/apt/trusted.gpg.d/google-cloud.gpg
+        mode: '0644'
+
     - name: Add Google Cloud Ops Agent repository
       ansible.builtin.apt_repository:
         repo: "deb https://packages.cloud.google.com/apt google-cloud-ops-agent-{{ ansible_distribution_release | lower }}-all main"
