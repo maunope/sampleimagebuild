@@ -283,10 +283,10 @@ resource "google_organization_iam_member" "browser_for_lucace_on_org" {
 
 # Create a connection to GitHub
 # Create a trigger that fires on commits to the main branch
-resource "google_cloudbuild_trigger" "github_trigger" {
+resource "google_cloudbuild_trigger" "debian_node_trigger" {
   project         = var.project_id
   location        = var.region
-  name            = "packer-image-builder-on-main-commit"
+  name            = "packer-debian-builder-on-main-commit"
   description     = "Triggers build on commit to main branch of ${local.github_repo}"
   service_account = google_service_account.packer_builder_sa.id
 
