@@ -290,9 +290,9 @@ resource "google_cloudbuild_trigger" "github_trigger" {
   description     = "Triggers build on commit to main branch of ${local.github_repo}"
   service_account = google_service_account.packer_builder_sa.id
 
-  # ADDED: Only trigger for changes in the 'customimage' folder.
-  included_files = ["customimage/**"]
-  filename       = "customimage/cloudbuild.yaml" // Assumes cloudbuild.yaml is in the root of the repo
+  # ADDED: Only trigger for changes in the 'debiannode' folder.
+  included_files = ["debiannode/**"]
+  filename       = "debiannode/cloudbuild.yaml" // Assumes cloudbuild.yaml is in the root of the repo
 
   # REVERTED: Use 1st generation github block for a simpler connection.
   # This requires authorizing the Cloud Build GitHub App in your repository settings.

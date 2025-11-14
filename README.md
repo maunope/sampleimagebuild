@@ -102,7 +102,7 @@ Terraform is used to provision all the necessary cloud infrastructure. The confi
 
 These folders contain the Packer templates, scripts, and Cloud Build configurations needed to create the various VM images. Each directory corresponds to a specific layer of the application stack.
 
--   `./customimage/`: Base image with common tools like the Ops Agent.
+-   `./debiannode/`: Base image with common tools like the Ops Agent.
 -   `./mysqlnode/`: Image containing the MySQL server.
 -   `./petshopdatabasenode/`: Image containing the MySQL server pre-configured with the Pet Shop application's database schema.
 -   `./petshopnode/`: The final application image, containing the web application code, built on top of the base images.

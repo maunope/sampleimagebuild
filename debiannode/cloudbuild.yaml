@@ -24,7 +24,7 @@ steps:
           -var 'image_name=${_IMAGE_NAME}-${SHORT_SHA}' \
           -var 'zone=${_ZONE}' \
           .
-    dir: 'customimage' # MODIFIED: Set the working directory to where the packer file is.
+    dir: 'debiannode' # MODIFIED: Set the working directory to where the packer file is.
 
   # Step 2: Clean up old images in the family, keeping the last 3.
   - id: 'Clean up old images'
