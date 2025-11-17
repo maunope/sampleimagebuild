@@ -58,20 +58,19 @@ build {
   # CORRECTED: The source reference must match the corrected source type and name
   sources = ["source.googlecompute.debian-image"]
 
-  # Provisioners are used to install software or configure the machine.
+  # A preliminary shell provisioner to install Python, which is required by Ansible.
   provisioner "shell" {
     inline = [
-      "echo 'Waiting for system to become ready...'",
-      "sleep 30",
-      "sudo apt-get update -y",
-      "# MODIFIED: Install Google Cloud Ops Agent",
-      "curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh",
-      "sudo bash add-google-cloud-ops-agent-repo.sh --also-install",
-      "# MODIFIED: Set ulimit permanently for all users",
-      "echo '* soft nofile 64000' | sudo tee /etc/security/limits.d/99-packer.conf",
-      "echo '* hard nofile 64000' | sudo tee -a /etc/security/limits.d/99-packer.conf",
-      "# CRITICAL FIX: Install jq, which is required by the boot script to parse secrets.",
-      "sudo apt-get install -y jq"
+      "echo 'Waiting for apt locks to be released...'",
+      "while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 5; done",
+      "sudo apt-get update -y && sudo apt-get install -y python3"
     ]
+  }
+
+  # The Ansible provisioner executes the playbook to configure the image.
+  provisioner "ansible" {
+    playbook_file = "ansible/playbook.yml"
+    # This tells Ansible to use the 'packer' user and its sudo privileges.
+    user          = "packer"
   }
 }
