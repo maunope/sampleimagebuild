@@ -23,6 +23,11 @@ packer {
       source  = "github.com/hashicorp/googlecompute"
       version = "1.2.4"
     }
+    # ADDED: Declare the Ansible provisioner plugin.
+    ansible = {
+      source  = "github.com/hashicorp/ansible"
+      version = "~> 1.1"
+    }
   }
 }
 
@@ -52,39 +57,20 @@ source "googlecompute" "apache-image-from-custom-debian" {
 build {
   sources = ["source.googlecompute.apache-image-from-custom-debian"]
 
-  # Provisioners are used to install software or configure the machine.
+  # A preliminary shell provisioner to ensure Python is present, which is required by Ansible.
+  # This is a safe check even if the base image already has it.
   provisioner "shell" {
     inline = [
-      "set -e",
-      "echo 'Waiting for system to become ready...'",
-      "sleep 15",
-      "sudo apt-get update -y",
-      "sudo apt-get upgrade -y",
-      "echo 'Installing Apache2...'",
-      "sudo apt-get install -y apache2",
-      "sudo systemctl enable apache2",
-      "echo 'Installing Google Cloud Ops Agent...'",
-      "curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh",
-      "sudo bash add-google-cloud-ops-agent-repo.sh --also-install",
-      "echo 'Configuring Google Cloud Ops Agent for Apache logging... '",
-      "sudo mkdir -p /etc/google-cloud-ops-agent",
-      "sudo tee /etc/google-cloud-ops-agent/config.yaml > /dev/null <<'EOF'",
-      "logging:",
-      "  receivers:",
-      "    apache_access:",
-      "      type: apache_access",
-      "    apache_error:",
-      "      type: apache_error",
-      "  service:",
-      "    pipelines:",
-      "      apache:",
-      "        receivers:",
-      "          - apache_access",
-      "          - apache_error",
-      "EOF",
-      "echo 'Restarting Ops Agent to apply configuration...'",
-      "sudo systemctl restart google-cloud-ops-agent",
-      "echo 'Apache installation and configuration complete.'"
+      "echo 'Waiting for apt locks to be released...'",
+      "while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 5; done",
+      "sudo apt-get update -y && sudo apt-get install -y python3"
     ]
+  }
+
+  # The Ansible provisioner executes the playbook to configure the image.
+  provisioner "ansible" {
+    playbook_file = "ansible/playbook.yml"
+    # This tells Ansible to use the 'packer' user and its sudo privileges.
+    user          = "packer"
   }
 }

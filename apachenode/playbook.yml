@@ -1,0 +1,42 @@
+---
+- hosts: all
+  name: Configure Apache and Ops Agent Logging
+  become: yes
+  become_user: root
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - name: Install Apache
+      ansible.builtin.apt:
+        name: apache2
+        state: present
+        update_cache: yes
+
+    - name: Ensure Apache service is enabled
+      ansible.builtin.service:
+        name: apache2
+        enabled: yes
+
+    - name: Configure Ops Agent for Apache
+      ansible.builtin.copy:
+        dest: /etc/google-cloud-ops-agent/config.yaml
+        content: |
+          logging:
+            receivers:
+              apache_access:
+                type: apache_access
+              apache_error:
+                type: apache_error
+            service:
+              pipelines:
+                apache:
+                  receivers:
+                    - apache_access
+                    - apache_error
+      notify: Restart Ops Agent
+
+  handlers:
+    - name: Restart Ops Agent
+      ansible.builtin.service:
+        name: google-cloud-ops-agent
+        state: restarted
