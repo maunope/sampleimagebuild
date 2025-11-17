@@ -26,6 +26,10 @@ packer {
       # Version 1.2.4 is the latest on this path and supports no_external_ip and shielded_instance_config.
       version = "1.2.4" 
     }
+    ansible = {
+      source  = "github.com/hashicorp/ansible"
+      version = "~> 1.1"
+    }
   }
 }
 
