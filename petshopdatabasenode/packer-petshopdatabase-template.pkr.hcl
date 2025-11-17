@@ -62,6 +62,12 @@ build {
     ]
   }
 
+  # Upload the database schema file to a temporary location on the remote machine.
+  provisioner "file" {
+    source      = "../website/db_schema.sql"
+    destination = "/tmp/db_schema.sql"
+  }
+
   # The Ansible provisioner executes the playbook to configure the image.
   provisioner "ansible" {
     playbook_file = "playbook.yml"
