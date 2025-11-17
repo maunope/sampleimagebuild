@@ -6,9 +6,9 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - name: Ensure MySQL service is started
+    - name: Ensure MariaDB service is started
       ansible.builtin.service:
-        name: mysql
+        name: mariadb
         state: started
         enabled: yes
 

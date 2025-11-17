@@ -6,8 +6,8 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - name: Install MySQL Server
+    - name: Install MariaDB Server (MySQL compatible)
       ansible.builtin.apt:
-        name: mysql-server
+        name: mariadb-server
         state: present
         update_cache: yes
