@@ -12,12 +12,14 @@
         state: started
         enabled: yes
 
+    - name: Copy database schema to remote host
+      ansible.builtin.copy:
+        src: ../website/db/db_schema.sql
+        dest: /tmp/db_schema.sql
+
     - name: Import the database schema
       ansible.builtin.shell:
         cmd: "mysql -u root < /tmp/db_schema.sql"
       args:
-        # Upload the schema file before executing the command.
-        # This assumes the schema file is in the 'website/db' directory.
+        # This task is idempotent because it only runs if the 'petshop' database doesn't exist.
         creates: /var/lib/mysql/petshop
-      vars:
-        ansible_ssh_transfer_method: scp
