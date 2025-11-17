@@ -17,9 +17,8 @@
 
     - name: Copy website files to the web root
       ansible.builtin.copy:
-        src: /tmp/website/
+        src: ../website/
         dest: /var/www/html/
-        remote_src: yes
         owner: www-data
         group: www-data
         mode: '0644'

@@ -65,12 +65,6 @@ build {
     ]
   }
 
-  # Upload the website source code to the image before running Ansible.
-  provisioner "file" {
-    source      = "../website/"
-    destination = "/tmp/website"
-  }
-
   # The Ansible provisioner executes the playbook to configure the image.
   provisioner "ansible" {
     playbook_file = "playbook.yml"
