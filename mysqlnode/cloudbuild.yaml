@@ -1,31 +1,24 @@
 steps:
-  # Step 1: Initialize Packer plugins for the Apache image build
-  - id: 'Packer Init MySQL'
+  # Step 1: Install Ansible, then run Packer Init and Build
+  - id: 'Packer Ansible Build'
     name: 'hashicorp/packer:latest'
-    entrypoint: 'packer'
+    entrypoint: 'sh'
     args:
-      - 'init'
-      - 'packer-mysql-template.pkr.hcl'
+      - '-c'
+      - |
+        # The hashicorp/packer image is based on Alpine Linux, so we use apk.
+        apk add --no-cache ansible openssh-client mysql-client
+
+        # Run packer commands
+        packer init .
+        packer build \
+          -var 'project_id=${_GCP_PROJECT}' \
+          -var 'image_name=${_IMAGE_NAME}-${SHORT_SHA}' \
+          -var 'zone=${_ZONE}' \
+          .
     dir: 'mysqlnode' # Set the working directory to this folder
 
-  # Step 2: Build the Apache Image
-  - id: 'Packer Build MySQL'
-    name: 'hashicorp/packer:latest'
-    entrypoint: 'packer'
-    args:
-      - 'build'
-      # Pass your variables to the build command
-      - '-var'
-      - 'project_id=${_GCP_PROJECT}'
-      - '-var'
-      - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
-      - '-var'
-      - 'zone=${_ZONE}'
-      - 'packer-mysql-template.pkr.hcl'
-    dir: 'mysqlnode' # Set the working directory to this folder
-    waitFor: ['Packer Init MySQL'] # Ensure initialization is complete
-
-  # ADDED: Step 3: Clean up old images in the family, keeping the last 3.
+  # Step 2: Clean up old images in the family, keeping the last 3.
   - id: 'Clean up old MySQL images'
     name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
     entrypoint: 'bash'
@@ -41,11 +34,10 @@ steps:
           echo "$$IMAGES_TO_DELETE"
           echo "$$IMAGES_TO_DELETE" | xargs -r gcloud compute images delete --project=${_GCP_PROJECT} --quiet
         fi
-    waitFor: ['Packer Build MySQL']
+    waitFor: ['Packer Ansible Build']
 
 # Specify logging options
 options:
   logging: CLOUD_LOGGING_ONLY
-  # Use the same private pool for this build
-  pool: 
+  pool:
     name: 'projects/${PROJECT_ID}/locations/${_REGION}/workerPools/packer_private_pool'

@@ -8,12 +8,12 @@ variable "project_id" {
 
 variable "image_name" {
   type    = string
-  default = "packer-petshopdatabase-image"
+  default = "packer-petshop-database-image"
 }
 
 variable "zone" {
   type    = string
-  default = "europe-west4-a" # Default value
+  default = "europe-west4-a"
 }
 
 # Packer block to define required plugins and their versions.
@@ -23,17 +23,19 @@ packer {
       source  = "github.com/hashicorp/googlecompute"
       version = "1.2.4"
     }
+    ansible = {
+      source  = "github.com/hashicorp/ansible"
+      version = "~> 1.1"
+    }
   }
 }
 
 # Define the source image and builder configuration.
-source "googlecompute" "petshopdatabase-image-from-mysql" {
-  project_id = var.project_id
-  # MODIFIED: Use the mysql node image family as the source.
+source "googlecompute" "petshop-database-image-from-mysql" {
+  project_id          = var.project_id
   source_image_family = "custom-mysqlnode-family"
   zone                = var.zone
 
-  # Specify the network and subnetwork for the temporary VM.
   network          = "packer-build-vpc"
   subnetwork       = "packer-build-subnet"
   omit_external_ip = true
@@ -41,74 +43,28 @@ source "googlecompute" "petshopdatabase-image-from-mysql" {
   enable_secure_boot = true
   use_internal_ip    = true
 
-  image_name = var.image_name
-  # MODIFIED: Place the new image in a new family.
-  image_family        = "petshopdatabasenode-family"
-  image_description   = "Debian 11 image with MySQL and a petshop database, built on top of the custom-mysqlnode-family."
+  image_name          = var.image_name
+  image_family        = "custom-petshopdatabasenode-family"
+  image_description   = "MySQL image with the Pet Shop database schema imported."
   ssh_username        = "packer"
 }
 
 # The 'build' block defines what Packer will do.
 build {
-  sources = ["source.googlecompute.petshopdatabase-image-from-mysql"]
+  sources = ["source.googlecompute.petshop-database-image-from-mysql"]
 
-  # This single provisioner block does two things:
-  # 1. Sets up the static database schema.
-  # 2. Creates and enables a systemd service that will run on first boot to securely configure users.
+  # A preliminary shell provisioner to ensure Python is present for Ansible.
   provisioner "shell" {
     inline = [
-      
-      "echo 'Waiting for MySQL to become ready...'",
-      "sleep 15",
-
-      "# Create petshop database and tables.",
-      "sudo mysql -u root -e 'CREATE DATABASE IF NOT EXISTS petshop;'",
-      "sudo mysql -u root -e 'USE petshop; CREATE TABLE IF NOT EXISTS products (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255));'",
-      "sudo mysql -u root -e \"USE petshop; INSERT INTO products (name) VALUES ('Golden Retriever'), ('Siamese Cat'), ('Parrot'), ('Goldfish'), ('Hamster'), ('Canary'), ('Iguana'), ('Ferret'), ('Rabbit'), ('Turtle');\"",
-      "echo 'Petshop database schema created successfully.'",
-
-      "echo 'Creating first-boot configuration script...'",
-      "# Create the script that will run on first boot.",
-      "cat <<'EOT' | sudo tee /usr/local/bin/configure-db.sh",
-      "#!/bin/bash",
-      "set -e",
-      "PROJECT_ID=$(curl -s \"http://metadata.google.internal/computeMetadata/v1/project/project-id\" -H \"Metadata-Flavor: Google\")",
-      "if [ -z \"$PROJECT_ID\" ]; then echo 'FATAL: Could not get project ID.' >&2; exit 1; fi",
-      "echo 'First boot: Configuring MySQL in project $PROJECT_ID...'",
-      "APP_USER_PAYLOAD=$(gcloud secrets versions access latest --secret=\"petshop-db-credentials\" --project=\"$PROJECT_ID\")",
-      "DB_USERNAME=$(echo \"$APP_USER_PAYLOAD\" | jq -r .username)",
-      "DB_PASSWORD=$(echo \"$APP_USER_PAYLOAD\" | jq -r .password)",
-      "ROOT_PASSWORD=$(gcloud secrets versions access latest --secret=\"petshop-db-root-credentials\" --project=\"$PROJECT_ID\" | jq -r .password)",
-      "while ! mysqladmin ping --silent; do echo 'Waiting for MySQL...'; sleep 2; done",
-      "# CORRECTED: Use a 'here document' to safely pass variables with special characters to MySQL.",
-      "mysql -u root <<-MYSQL_SCRIPT", # This heredoc allows shell variable expansion
-      "CREATE USER '$${DB_USERNAME}'@'%' IDENTIFIED  BY '$${DB_PASSWORD}';",
-      "GRANT ALL PRIVILEGES ON *.* TO '$${DB_USERNAME}'@'%' WITH GRANT OPTION;",
-      "ALTER USER 'root'@'localhost' IDENTIFIED BY '$${ROOT_PASSWORD}';",
-      "# CRITICAL FIX: Explicitly drop any remote root user that may exist from previous bad builds.",
-      "DROP USER IF EXISTS 'root'@'%';",
-      "FLUSH PRIVILEGES;",
-      "MYSQL_SCRIPT",
-      "echo 'MySQL users configured successfully.'",
-      "systemctl disable configure-db.service",
-      "echo 'Configuration complete. Service disabled.'",
-      "EOT",
-
-      "sudo chmod +x /usr/local/bin/configure-db.sh",
-      "echo 'Creating and enabling systemd service...'",
-      "# Create the systemd service file to run the script.",
-      "cat <<'EOT' | sudo tee /etc/systemd/system/configure-db.service",
-      "[Unit]",
-      "Description=First-boot MySQL Configuration",
-      "After=network-online.target mysql.service",
-      "[Service]",
-      "ExecStart=/usr/local/bin/configure-db.sh",
-      "[Install]",
-      "WantedBy=multi-user.target",
-      "EOT",
-      "# Enable the service so it runs on the next boot.",
-      "sudo systemctl enable configure-db.service",
-      "echo 'Service enabled. It will run on next boot.'"
+      "echo 'Waiting for apt locks to be released...'",
+      "while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 5; done",
+      "sudo apt-get update -y && sudo apt-get install -y python3"
     ]
   }
-} 
+
+  # The Ansible provisioner executes the playbook to configure the image.
+  provisioner "ansible" {
+    playbook_file = "playbook.yml"
+    user          = "packer"
+  }
+}

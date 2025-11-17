@@ -1,51 +1,43 @@
 steps:
-  # Step 1: Initialize Packer plugins for the Pet Shop image build
-  - id: 'Packer Init Petshop Database'
+  # Step 1: Install Ansible, then run Packer Init and Build
+  - id: 'Packer Ansible Build'
     name: 'hashicorp/packer:latest'
-    entrypoint: 'packer'
+    entrypoint: 'sh'
     args:
-      - 'init'
-      - 'packer-petshopdatabase-template.pkr.hcl'
+      - '-c'
+      - |
+        # The hashicorp/packer image is based on Alpine Linux, so we use apk.
+        apk add --no-cache ansible openssh-client mysql-client
+
+        # Run packer commands
+        packer init .
+        packer build \
+          -var 'project_id=${_GCP_PROJECT}' \
+          -var 'image_name=${_IMAGE_NAME}-${SHORT_SHA}' \
+          -var 'zone=${_ZONE}' \
+          .
     dir: 'petshopdatabasenode' # Set the working directory to this folder
 
-  # Step 2: Build the Pet Shop Image
-  - id: 'Packer Build Petshop Database'
-    name: 'hashicorp/packer:latest'
-    entrypoint: 'packer'
-    args:
-      - 'build'
-      # Pass your variables to the build command
-      - '-var'
-      - 'project_id=${_GCP_PROJECT}'
-      - '-var'
-      - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
-      - '-var'
-      - 'zone=${_ZONE}' # Use the zone substitution
-      - 'packer-petshopdatabase-template.pkr.hcl'
-    dir: 'petshopdatabasenode' # Set the working directory to this folder
-    waitFor: ['Packer Init Petshop Database'] # Ensure initialization is complete
-
-  # MODIFIED: Step 3: Clean up old images in the family, keeping the last 3.
-  - id: 'Clean up old Petshop images'
+  # Step 2: Clean up old images in the family, keeping the last 3.
+  - id: 'Clean up old Petshop DB images'
     name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        FAMILY="petshopdatabasenode-family" # MODIFIED: Correct family name
+        FAMILY="custom-petshopdatabasenode-family"
         IMAGES_TO_DELETE=$(gcloud compute images list --project=${_GCP_PROJECT} --filter="family=$${FAMILY}" --sort-by="~creationTimestamp" --format="value(name)" | tail -n +4)
         if [ -z "$$IMAGES_TO_DELETE" ]; then
           echo "No old images to delete for family $${FAMILY}."
         else
           echo "Deleting old images for family $${FAMILY}:"
           echo "$$IMAGES_TO_DELETE"
-          echo "$$IMAGES_TO_DELETE" | xargs -r gcloud compute images delete --project=${_GCP_PROJECT} --quiet # MODIFIED: Corrected command
+          echo "$$IMAGES_TO_DELETE" | xargs -r gcloud compute images delete --project=${_GCP_PROJECT} --quiet
         fi
-    waitFor: ['Packer Build Petshop Database'] # MODIFIED: Wait for the build to complete
+    waitFor: ['Packer Ansible Build']
 
 # Specify logging options
 options:
   logging: CLOUD_LOGGING_ONLY
-  # Use the same private pool for this build
-  pool: 
+  pool:
     name: 'projects/${PROJECT_ID}/locations/${_REGION}/workerPools/packer_private_pool'

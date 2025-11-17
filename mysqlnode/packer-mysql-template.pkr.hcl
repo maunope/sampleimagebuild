@@ -13,7 +13,7 @@ variable "image_name" {
 
 variable "zone" {
   type    = string
-  default = "europe-west4-a" # Default value
+  default = "europe-west4-a"
 }
 
 # Packer block to define required plugins and their versions.
@@ -23,17 +23,19 @@ packer {
       source  = "github.com/hashicorp/googlecompute"
       version = "1.2.4"
     }
+    ansible = {
+      source  = "github.com/hashicorp/ansible"
+      version = "~> 1.1"
+    }
   }
 }
 
 # Define the source image and builder configuration.
-source "googlecompute" "mysql-image-from-custom-debian" {
-  project_id = var.project_id
-  # MODIFIED: Use the previously created image family as the source.
-  source_image_family = "custom-debian-family"
+source "googlecompute" "mysql-image-from-debian" {
+  project_id          = var.project_id
+  source_image_family = "debian-11"
   zone                = var.zone
 
-  # Specify the network and subnetwork for the temporary VM.
   network          = "packer-build-vpc"
   subnetwork       = "packer-build-subnet"
   omit_external_ip = true
@@ -41,65 +43,28 @@ source "googlecompute" "mysql-image-from-custom-debian" {
   enable_secure_boot = true
   use_internal_ip    = true
 
-  image_name = var.image_name
-  # MODIFIED: Place the new image in a new family.
+  image_name          = var.image_name
   image_family        = "custom-mysqlnode-family"
-  image_description   = "Debian 11 image with MySQL, built on top of the custom-debian-family."
+  image_description   = "Debian 11 image with MySQL Server installed."
   ssh_username        = "packer"
 }
 
 # The 'build' block defines what Packer will do.
 build {
-  sources = ["source.googlecompute.mysql-image-from-custom-debian"]
+  sources = ["source.googlecompute.mysql-image-from-debian"]
 
-  # Provisioners are used to install software or configure the machine.
+  # A preliminary shell provisioner to ensure Python is present for Ansible.
   provisioner "shell" {
     inline = [
-      "set -e",
-      "echo 'Waiting for system to become ready...'",
-      "sleep 15",
-      "sudo apt-get update -y",
-      "sudo apt-get upgrade -y",
-      "echo 'Installing MariaDB Server...'",
-      "sudo apt-get install -y mariadb-server",
-      "sudo systemctl enable mariadb",
-      "echo 'Configuring MariaDB for remote access and logging...'",
-      "sudo mysql -e \"GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'root' WITH GRANT OPTION;\"",
-      "sudo mysql -e \"FLUSH PRIVILEGES;\"",
-      "sudo sed -i 's/127.0.0.1/0.0.0.0/g' /etc/mysql/mariadb.conf.d/50-server.cnf",
-      "sudo mkdir -p /var/log/mysql",
-      "sudo touch /var/log/mysql/error.log /var/log/mysql/mysql.log /var/log/mysql/mysql-slow.log",
-      "sudo chown -R mysql:mysql /var/log/mysql",
-      "sudo sed -i '/^\\[mysqld\\]/a log_error = /var/log/mysql/error.log' /etc/mysql/mariadb.conf.d/50-server.cnf",
-      "sudo sed -i '/^\\[mysqld\\]/a general_log_file = /var/log/mysql/mysql.log' /etc/mysql/mariadb.conf.d/50-server.cnf",
-      "sudo sed -i '/^\\[mysqld\\]/a general_log = 1' /etc/mysql/mariadb.conf.d/50-server.cnf",
-      "sudo sed -i '/^\\[mysqld\\]/a slow_query_log_file = /var/log/mysql/mysql-slow.log' /etc/mysql/mariadb.conf.d/50-server.cnf",
-      "sudo sed -i '/^\\[mysqld\\]/a slow_query_log = 1' /etc/mysql/mariadb.conf.d/50-server.cnf",
-      "sudo systemctl restart mariadb ",
-      "echo 'Installing Google Cloud Ops Agent...'",
-      "curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh",
-      "sudo bash add-google-cloud-ops-agent-repo.sh --also-install",
-      "echo 'Configuring Google Cloud Ops Agent for MariaDB logging...'",
-      "sudo tee /etc/google-cloud-ops-agent/config.yaml > /dev/null <<'EOF'",
-      "logging:",
-      "  receivers:",
-      "    mysql_error:",
-      "      type: mysql_error",
-      "    mysql_general:",
-      "      type: mysql_general",
-      "    mysql_slow:",
-      "      type: mysql_slow",
-      "  service:",
-      "    pipelines:",
-      "      mysql:",
-      "        receivers:",
-      "          - mysql_error",
-      "          - mysql_general",
-      "          - mysql_slow",
-      "EOF",
-      "echo 'Restarting Ops Agent to apply configuration...'",
-      "sudo systemctl restart google-cloud-ops-agent",
-      "echo 'MariaDB installation and configuration complete.'"
+      "echo 'Waiting for apt locks to be released...'",
+      "while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 5; done",
+      "sudo apt-get update -y && sudo apt-get install -y python3"
     ]
+  }
+
+  # The Ansible provisioner executes the playbook to configure the image.
+  provisioner "ansible" {
+    playbook_file = "playbook.yml"
+    user          = "packer"
   }
 }
