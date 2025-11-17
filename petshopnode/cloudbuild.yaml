@@ -1,78 +1,31 @@
 steps:
-  # Step 1: Initialize Packer plugins for the Pet Shop image build
-  - id: 'Packer Init Petshop'
+  # Step 1: Install Ansible, then run Packer Init and Build
+  - id: 'Packer Ansible Build'
     name: 'hashicorp/packer:latest'
-    entrypoint: 'packer'
-    args:
-      - 'init'
-      - 'packer-petshop-template.pkr.hcl'
-    dir: 'petshopnode' # Set the working directory to this folder
-
-  # Step 2: Build the Pet Shop Image
-  - id: 'Packer Build Petshop'
-    name: 'hashicorp/packer:latest'
-    entrypoint: 'packer'
-    args:
-      - 'build'
-      # Pass your variables to the build command
-      - '-var'
-      - 'project_id=${_GCP_PROJECT}'
-      - '-var'
-      - 'image_name=${_IMAGE_NAME}-${SHORT_SHA}'
-      - '-var'
-      - 'zone=${_ZONE}'
-      - 'packer-petshop-template.pkr.hcl'
-    dir: 'petshopnode' # Set the working directory to this folder
-    waitFor: ['Packer Init Petshop'] # Ensure initialization is complete
-
-  # ADDED: Step 3: Create a new instance template with the new image
-  - id: 'Create Instance Template'
-    name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
-    entrypoint: 'gcloud'
-    args:
-      - 'compute'
-      - 'instance-templates'
-      - 'create'
-      - 'petshop-instance-template-${SHORT_SHA}' # Create a uniquely named template
-      - '--project=${_GCP_PROJECT}'
-      - '--image-family=petshopnode-family' # CORRECTED: Use the correct gcloud flag
-      - '--image-project=${_GCP_PROJECT}'   # CORRECTED: Use the correct gcloud flag
-      - '--region=${_REGION}'
-      - '--network=petshop-vpc'
-      - '--subnet=petshop-subnet-${_REGION}'
-      - '--tags=allow-http'
-      - '--machine-type=e2-small'
-      - '--shielded-secure-boot' # ADDED: Enable Shielded VM to comply with organization policy.
-      - '--no-address'           # ADDED: Do not assign a public IP, to comply with org policy.
-    waitFor: ['Packer Build Petshop']
-
-  # ADDED: Step 4: Trigger a rolling update on the Managed Instance Group
-  - id: 'Deploy to MIG'
-    name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
-    entrypoint: 'bash'
+    entrypoint: 'sh'
     args:
       - '-c'
       - |
-        # Check if the MIG exists before trying to update it.
-        if gcloud compute instance-groups managed describe petshop-mig --region=${_REGION} --project=${_GCP_PROJECT} &> /dev/null; then
-          echo "MIG 'petshop-mig' found. Starting rolling update."
-          gcloud compute instance-groups managed rolling-action start-update petshop-mig \
-            --version=template=petshop-instance-template-${SHORT_SHA} \
-            --region=${_REGION} \
-            --project=${_GCP_PROJECT}
-        else
-          echo "MIG 'petshop-mig' not found. Skipping deployment. This is normal if the application has not been deployed yet."
-        fi
-    waitFor: ['Create Instance Template']
+        # The hashicorp/packer image is based on Alpine Linux, so we use apk.
+        apk add --no-cache ansible openssh-client
 
-  # ADDED: Step 5: Clean up old images in the family, keeping the last 3.
+        # Run packer commands
+        packer init .
+        packer build \
+          -var 'project_id=${_GCP_PROJECT}' \
+          -var 'image_name=${_IMAGE_NAME}-${SHORT_SHA}' \
+          -var 'zone=${_ZONE}' \
+          .
+    dir: 'petshopnode' # Set the working directory to this folder
+
+  # Step 2: Clean up old images in the family, keeping the last 3.
   - id: 'Clean up old Petshop images'
     name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        FAMILY="petshopnode-family"
+        FAMILY="custom-petshopnode-family"
         IMAGES_TO_DELETE=$(gcloud compute images list --project=${_GCP_PROJECT} --filter="family=$${FAMILY}" --sort-by="~creationTimestamp" --format="value(name)" | tail -n +4)
         if [ -z "$$IMAGES_TO_DELETE" ]; then
           echo "No old images to delete for family $${FAMILY}."
@@ -81,29 +34,11 @@ steps:
           echo "$$IMAGES_TO_DELETE"
           echo "$$IMAGES_TO_DELETE" | xargs -r gcloud compute images delete --project=${_GCP_PROJECT} --quiet
         fi
-    waitFor: ['Deploy to MIG']
-
-  # ADDED: Step 6: Clean up old instance templates, keeping the last 3.
-  - id: 'Clean up old instance templates'
-    name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        TEMPLATE_PREFIX="petshop-instance-template-"
-        TEMPLATES_TO_DELETE=$(gcloud compute instance-templates list --project=${_GCP_PROJECT} --filter="name~'^$${TEMPLATE_PREFIX}'" --sort-by="~creationTimestamp" --format="value(name)" | tail -n +4)
-        if [ -z "$$TEMPLATES_TO_DELETE" ]; then
-          echo "No old instance templates to delete."
-        else
-          echo "Deleting old instance templates:"
-          echo "$$TEMPLATES_TO_DELETE"
-          echo "$$TEMPLATES_TO_DELETE" | xargs -r gcloud compute instance-templates delete --project=${_GCP_PROJECT} --quiet
-        fi
-    waitFor: ['Deploy to MIG']
+    waitFor: ['Packer Ansible Build']
 
 # Specify logging options
 options:
   logging: CLOUD_LOGGING_ONLY
   # Use the same private pool for this build
-  pool: 
+  pool:
     name: 'projects/${PROJECT_ID}/locations/${_REGION}/workerPools/packer_private_pool'

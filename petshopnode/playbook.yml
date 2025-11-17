@@ -1,0 +1,25 @@
+---
+- hosts: all
+  name: Configure Pet Shop Application
+  become: yes
+  become_user: root
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - name: Install PHP and dependencies
+      ansible.builtin.apt:
+        name:
+          - php
+          - libapache2-mod-php
+          - php-mysql
+        state: present
+        update_cache: yes
+
+    - name: Copy website files to the web root
+      ansible.builtin.copy:
+        src: /tmp/website/
+        dest: /var/www/html/
+        remote_src: yes
+        owner: www-data
+        group: www-data
+        mode: '0644'
