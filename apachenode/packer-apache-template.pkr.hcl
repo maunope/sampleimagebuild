@@ -69,7 +69,7 @@ build {
 
   # The Ansible provisioner executes the playbook to configure the image.
   provisioner "ansible" {
-    playbook_file = "ansible/playbook.yml"
+    playbook_file = "playbook.yml"
     # This tells Ansible to use the 'packer' user and its sudo privileges.
     user          = "packer"
   }
