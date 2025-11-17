@@ -12,11 +12,6 @@
         state: started
         enabled: yes
 
-    - name: Copy database schema to remote host
-      ansible.builtin.copy:
-        src: ../website/db/db_schema.sql
-        dest: /tmp/db_schema.sql
-
     - name: Import the database schema
       ansible.builtin.shell:
         cmd: "mysql -u root < /tmp/db_schema.sql"
