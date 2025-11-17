@@ -454,7 +454,7 @@ resource "google_cloudbuild_trigger" "apache_node_trigger" {
 resource "google_cloudbuild_trigger" "terraform_apply_trigger" {
   project         = var.project_id
   location        = var.region
-  name            = "terraform-apply-on-commit"
+  name            = "terraform-petshopdeploy-on-commit"
   description     = "Triggers Terraform apply on commit to petshopdeploy folder"
   service_account = google_service_account.packer_builder_sa.id # For simplicity, reusing the packer SA.
 
